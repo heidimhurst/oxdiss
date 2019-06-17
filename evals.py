@@ -4,6 +4,7 @@ from problems.copying_memory_problem import CopyingMemoryProblemDataset
 from models.tf_rnn import TFRNN
 from models.urnn_cell import URNNCell
 from models.householder_cell import REFLECTCell
+from models.component_matrices import modReLU
 
 import argparse
 import numpy as np
@@ -39,53 +40,53 @@ def serialize_loss(loss, name):
         file.write("{0}\n".format(l))
 
 class Main:
-    def init_data(self, adding_problem, memory_problem):
-        print('Generating data...')
+    def init_data(self, adding_problem, memory_problem, batch_size=50, epochs=10, seed=True):
+        tf.logging.info('Generating data...')
 
         if memory_problem:
-            print('Generating memory problem data...')
+            tf.logging.info('Generating memory problem data...')
             # init copying memory problem
-            self.cm_batch_size=50
-            self.cm_epochs=10
+            self.cm_batch_size=batch_size
+            self.cm_epochs=epochs
 
             self.cm_timesteps=[120, 220, 320, 520]
             self.cm_samples=100000
-            self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps) for timesteps in self.cm_timesteps]
+            self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps, seed) for timesteps in self.cm_timesteps]
             self.dummy_cm_data=CopyingMemoryProblemDataset(100, 50) # samples, timestamps
 
         if adding_problem:
-            print('Generating adding problem data...')
+            tf.logging.info('Generating adding problem data...')
             # init adding problem
-            self.ap_batch_size=50
-            self.ap_epochs=10
+            self.ap_batch_size=batch_size
+            self.ap_epochs=epochs
 
             self.ap_timesteps=[100, 200, 400, 750]
             self.ap_samples=[30000, 50000, 40000, 100000]
-            self.ap_data=[AddingProblemDataset(sample, timesteps) for
+            self.ap_data=[AddingProblemDataset(sample, timesteps, seed) for
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
             self.dummy_ap_data=AddingProblemDataset(100, 50) # samples, timestamps
 
-        print('Done.')
+        tf.logging.info('Done.')
 
     def train_network(self, net, dataset, batch_size, epochs):
         sample_len = str(dataset.get_sample_len())
-        print('Training network ', net.name, '... timesteps=',sample_len)
+        tf.logging.info('Training network {} ... timesteps= {}'.format(net.name,sample_len))
         net.train(dataset, batch_size, epochs)
         # loss_list has one number for each batch (step)
         serialize_loss(net.get_loss_list(), net.name + sample_len)
-        print('Training network ', net.name, ' done.')
+        tf.logging.info('Training network ', net.name, ' done.')
 
     def test_network(self, net, dataset):
 
-        print('Testing network ', net.name)
+        tf.logging.info('Testing network ', net.name)
         net.test(dataset)
-        print('Testing network ', net.name, ' done.')
+        tf.logging.info('Testing network ', net.name, ' done.')
 
     def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem):
-        print('Initializing and training URNNs for one timestep...')
+        tf.logging.info('Initializing and training URNNs for one timestep...')
 
         if memory_problem:
-            print('Training urnn for memory problem...')
+            tf.logging.info('Training urnn for memory problem...')
             # CM
             tf.reset_default_graph()
             self.cm_urnn=TFRNN(
@@ -97,6 +98,7 @@ class Main:
                 single_output=False,
                 rnn_cell=URNNCell,
                 activation_hidden=None, # modReLU
+                # activation_hidden= modReLU,
                 activation_out=tf.identity,
                 optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
@@ -104,7 +106,7 @@ class Main:
                                self.cm_batch_size, self.cm_epochs)
 
         if adding_problem:
-            print('Training urnn for adding problem ...')
+            tf.logging.info('Training urnn for adding problem ...')
             # AP
             tf.reset_default_graph()
             self.ap_urnn=TFRNN(
@@ -115,21 +117,22 @@ class Main:
                 num_target=1,
                 single_output=True,
                 rnn_cell=URNNCell,
-                activation_hidden=None, # modReLU
+                # activation_hidden=None, # modReLU
+                activation_hidden= modReLU,
                 activation_out=tf.identity,
                 optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 loss_function=tf.squared_difference)
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
-        print('Init and training URNNs for one timestep done.')
+        tf.logging.info('Init and training URNNs for one timestep done.')
 
 
     def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem):
-        print('Initializing and training RNN&LSTM for one timestep...')
+        tf.logging.info('Initializing and training RNN&LSTM for one timestep...')
 
         if memory_problem:
-            print("Training rnn/lstm for memory problem ...")
+            tf.logging.info("Training rnn/lstm for memory problem ...")
             # CM
 
             tf.reset_default_graph()
@@ -165,7 +168,7 @@ class Main:
                                self.cm_batch_size, self.cm_epochs)
 
         if adding_problem:
-            print("Training rnn/lstm for adding problem ...")
+            tf.logging.info("Training rnn/lstm for adding problem ...")
             # AP
             tf.reset_default_graph()
             self.ap_simple_rnn=TFRNN(
@@ -199,10 +202,10 @@ class Main:
             self.train_network(self.ap_lstm, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
-        print('Init and training networks for one timestep done.')
+        tf.logging.info('Init and training networks for one timestep done.')
 
     def train_networks(self, adding_problem, memory_problem, timesteps_idx=4):
-        print('Starting training...')
+        tf.logging.info('Starting training...')
 
         # timesteps_idx=4
         for i in range(timesteps_idx):
@@ -210,17 +213,17 @@ class Main:
         for i in range(timesteps_idx):
             main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem)
 
-        print('Done and done.')
+        tf.logging.info('Done and done.')
     #
     # def test_networks(self, timesteps_idx=4):
-    #     print('Starting testing...')
+    #     tf.logging.info('Starting testing...')
     #
     #     for i in range(timesteps_idx):
     #         main.train_urnn_for_timestep_idx(i)
     #     for i in range(timesteps_idx):
     #         main.train_rnn_lstm_for_timestep_idx(i)
     #
-    #     print('Done and done.')
+    #     tf.logging.info('Done and done.')
     #
 
 if __name__ == "__main__":
@@ -229,11 +232,19 @@ if __name__ == "__main__":
     parser.add_argument("-tr", '--train', dest='train', action='store_true')
     parser.add_argument("-a", '--adding-problem', dest="adding_problem", action='store_true')
     parser.add_argument("-m", '--memory-problem', dest="memory_problem", action='store_true')
+    parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=50)
+    parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=10)
+    parser.add_argument("-u", '--urnn', dest="urnn", action="store_true")
+    # generate random data (i.e. not from seed)
+    parser.add_argument("-r", '--randomize-data', dest="seed", action="store_false")
 
     args = parser.parse_args()
 
+    # set logging verbosity to view commands/info
+    tf.logging.set_verbosity(tf.logging.INFO)
+
     main=Main()
-    main.init_data(args.adding_problem, args.memory_problem)
+    main.init_data(args.adding_problem, args.memory_problem, args.batch_size, args.epochs, args.seed)
 
     if args.train:
         main.train_networks(args.adding_problem, args.memory_problem)

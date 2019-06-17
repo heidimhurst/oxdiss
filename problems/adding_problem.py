@@ -1,12 +1,19 @@
 import numpy as np
 from .dataset import Dataset
+import tensorflow.logging as log
 
 # single output = True
 # num_in = 2
 # num_target = 1
 
 class AddingProblemDataset(Dataset):
-    def generate(self, num_samples):
+    def generate(self, num_samples, seed=True):
+
+        # for reproducibility
+        if seed:
+            log.info("Seeding adding problem data set for reproducibility.")
+            np.random.seed(42)
+
         X_value = np.random.uniform(low = 0, high = 1, size = (num_samples, self.sample_len, 1))
         X_mask = np.zeros((num_samples, self.sample_len, 1))
         Y = np.ones((num_samples, 1))

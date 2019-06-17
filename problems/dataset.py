@@ -1,5 +1,5 @@
 class Dataset:
-    def __init__(self, num_samples, sample_len):
+    def __init__(self, num_samples, sample_len, seed=True):
         self.num_samples = num_samples
         self.sample_len = sample_len
         if num_samples == -1:
