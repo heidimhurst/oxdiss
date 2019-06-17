@@ -39,27 +39,31 @@ def serialize_loss(loss, name):
         file.write("{0}\n".format(l))
 
 class Main:
-    def init_data(self):
+    def init_data(self, adding_problem, memory_problem):
         print('Generating data...')
 
-        # init copying memory problem
-        self.cm_batch_size=50
-        self.cm_epochs=10
+        if memory_problem:
+            print('Generating memory problem data...')
+            # init copying memory problem
+            self.cm_batch_size=50
+            self.cm_epochs=10
 
-        self.cm_timesteps=[120, 220, 320, 520]
-        self.cm_samples=100000
-        self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps) for timesteps in self.cm_timesteps]
-        self.dummy_cm_data=CopyingMemoryProblemDataset(100, 50) # samples, timestamps
+            self.cm_timesteps=[120, 220, 320, 520]
+            self.cm_samples=100000
+            self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps) for timesteps in self.cm_timesteps]
+            self.dummy_cm_data=CopyingMemoryProblemDataset(100, 50) # samples, timestamps
 
-        # init adding problem
-        self.ap_batch_size=50
-        self.ap_epochs=10
+        if adding_problem:
+            print('Generating adding problem data...')
+            # init adding problem
+            self.ap_batch_size=50
+            self.ap_epochs=10
 
-        self.ap_timesteps=[100, 200, 400, 750]
-        self.ap_samples=[30000, 50000, 40000, 100000]
-        self.ap_data=[AddingProblemDataset(sample, timesteps) for 
-                      timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
-        self.dummy_ap_data=AddingProblemDataset(100, 50) # samples, timestamps
+            self.ap_timesteps=[100, 200, 400, 750]
+            self.ap_samples=[30000, 50000, 40000, 100000]
+            self.ap_data=[AddingProblemDataset(sample, timesteps) for
+                          timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
+            self.dummy_ap_data=AddingProblemDataset(100, 50) # samples, timestamps
 
         print('Done.')
 
@@ -71,143 +75,165 @@ class Main:
         serialize_loss(net.get_loss_list(), net.name + sample_len)
         print('Training network ', net.name, ' done.')
 
-    def train_urnn_for_timestep_idx(self, idx):
+    def test_network(self, net, dataset):
+
+        print('Testing network ', net.name)
+        net.test(dataset)
+        print('Testing network ', net.name, ' done.')
+
+    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem):
         print('Initializing and training URNNs for one timestep...')
 
-        # CM
+        if memory_problem:
+            print('Training urnn for memory problem...')
+            # CM
+            tf.reset_default_graph()
+            self.cm_urnn=TFRNN(
+                name="cm_urnn",
+                num_in=1,
+                num_hidden=128,
+                num_out=10,
+                num_target=1,
+                single_output=False,
+                rnn_cell=URNNCell,
+                activation_hidden=None, # modReLU
+                activation_out=tf.identity,
+                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+            self.train_network(self.cm_urnn, self.cm_data[idx],
+                               self.cm_batch_size, self.cm_epochs)
 
-        tf.reset_default_graph()
-        self.cm_urnn=TFRNN(
-            name="cm_urnn",
-            num_in=1,
-            num_hidden=128,
-            num_out=10,
-            num_target=1,
-            single_output=False,
-            rnn_cell=REFLECTCell,
-            activation_hidden=None, # modReLU
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
-        self.train_network(self.cm_urnn, self.cm_data[idx], 
-                           self.cm_batch_size, self.cm_epochs)
-
-        # AP
-
-        tf.reset_default_graph()
-        self.ap_urnn=TFRNN(
-            name="ap_urnn",
-            num_in=2,
-            num_hidden=512,
-            num_out=1,
-            num_target=1,
-            single_output=True,
-            rnn_cell=URNNCell,
-            activation_hidden=None, # modReLU
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.squared_difference)
-        self.train_network(self.ap_urnn, self.ap_data[idx], 
-                           self.ap_batch_size, self.ap_epochs)
+        if adding_problem:
+            print('Training urnn for adding problem ...')
+            # AP
+            tf.reset_default_graph()
+            self.ap_urnn=TFRNN(
+                name="ap_urnn",
+                num_in=2,
+                num_hidden=512,
+                num_out=1,
+                num_target=1,
+                single_output=True,
+                rnn_cell=URNNCell,
+                activation_hidden=None, # modReLU
+                activation_out=tf.identity,
+                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                loss_function=tf.squared_difference)
+            self.train_network(self.ap_urnn, self.ap_data[idx],
+                               self.ap_batch_size, self.ap_epochs)
 
         print('Init and training URNNs for one timestep done.')
 
 
-    def train_rnn_lstm_for_timestep_idx(self, idx):
+    def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem):
         print('Initializing and training RNN&LSTM for one timestep...')
 
-        # CM
+        if memory_problem:
+            print("Training rnn/lstm for memory problem ...")
+            # CM
 
-        tf.reset_default_graph()
-        self.cm_simple_rnn=TFRNN(
-            name="cm_simple_rnn",
-            num_in=1,
-            num_hidden=80,
-            num_out=10,
-            num_target=1,
-            single_output=False,
-            rnn_cell=tf.contrib.rnn.BasicRNNCell,
-            activation_hidden=tf.tanh,
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
-        self.train_network(self.cm_simple_rnn, self.cm_data[idx], 
-                           self.cm_batch_size, self.cm_epochs)
+            tf.reset_default_graph()
+            self.cm_simple_rnn=TFRNN(
+                name="cm_simple_rnn",
+                num_in=1,
+                num_hidden=80,
+                num_out=10,
+                num_target=1,
+                single_output=False,
+                rnn_cell=tf.contrib.rnn.BasicRNNCell,
+                activation_hidden=tf.tanh,
+                activation_out=tf.identity,
+                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+            self.train_network(self.cm_simple_rnn, self.cm_data[idx],
+                               self.cm_batch_size, self.cm_epochs)
 
-        tf.reset_default_graph()
-        self.cm_lstm=TFRNN(
-            name="cm_lstm",
-            num_in=1,
-            num_hidden=40,
-            num_out=10,
-            num_target=1,
-            single_output=False,
-            rnn_cell=tf.contrib.rnn.LSTMCell,
-            activation_hidden=tf.tanh,
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
-        self.train_network(self.cm_lstm, self.cm_data[idx], 
-                           self.cm_batch_size, self.cm_epochs)
+            tf.reset_default_graph()
+            self.cm_lstm=TFRNN(
+                name="cm_lstm",
+                num_in=1,
+                num_hidden=40,
+                num_out=10,
+                num_target=1,
+                single_output=False,
+                rnn_cell=tf.contrib.rnn.LSTMCell,
+                activation_hidden=tf.tanh,
+                activation_out=tf.identity,
+                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+            self.train_network(self.cm_lstm, self.cm_data[idx],
+                               self.cm_batch_size, self.cm_epochs)
 
-        # AP
+        if adding_problem:
+            print("Training rnn/lstm for adding problem ...")
+            # AP
+            tf.reset_default_graph()
+            self.ap_simple_rnn=TFRNN(
+                name="ap_simple_rnn",
+                num_in=2,
+                num_hidden=128,
+                num_out=1,
+                num_target=1,
+                single_output=True,
+                rnn_cell=tf.contrib.rnn.BasicRNNCell,
+                activation_hidden=tf.tanh,
+                activation_out=tf.identity,
+                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                loss_function=tf.squared_difference)
+            self.train_network(self.ap_simple_rnn, self.ap_data[idx],
+                               self.ap_batch_size, self.ap_epochs)
 
-        tf.reset_default_graph()
-        self.ap_simple_rnn=TFRNN(
-            name="ap_simple_rnn",
-            num_in=2,
-            num_hidden=128,
-            num_out=1,
-            num_target=1,
-            single_output=True,
-            rnn_cell=tf.contrib.rnn.BasicRNNCell,
-            activation_hidden=tf.tanh,
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.squared_difference)
-        self.train_network(self.ap_simple_rnn, self.ap_data[idx], 
-                           self.ap_batch_size, self.ap_epochs)
-
-        tf.reset_default_graph()
-        self.ap_lstm=TFRNN(
-            name="ap_lstm",
-            num_in=2,
-            num_hidden=128,
-            num_out=1,
-            num_target=1,
-            single_output=True,
-            rnn_cell=tf.contrib.rnn.LSTMCell,
-            activation_hidden=tf.tanh,
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.squared_difference)
-        self.train_network(self.ap_lstm, self.ap_data[idx], 
-                           self.ap_batch_size, self.ap_epochs)
+            tf.reset_default_graph()
+            self.ap_lstm=TFRNN(
+                name="ap_lstm",
+                num_in=2,
+                num_hidden=128,
+                num_out=1,
+                num_target=1,
+                single_output=True,
+                rnn_cell=tf.contrib.rnn.LSTMCell,
+                activation_hidden=tf.tanh,
+                activation_out=tf.identity,
+                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                loss_function=tf.squared_difference)
+            self.train_network(self.ap_lstm, self.ap_data[idx],
+                               self.ap_batch_size, self.ap_epochs)
 
         print('Init and training networks for one timestep done.')
 
-    def train_networks(self, timesteps_idx=4):
+    def train_networks(self, adding_problem, memory_problem, timesteps_idx=4):
         print('Starting training...')
 
         # timesteps_idx=4
         for i in range(timesteps_idx):
-            main.train_urnn_for_timestep_idx(i)
+            main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem)
         for i in range(timesteps_idx):
-            main.train_rnn_lstm_for_timestep_idx(i)
+            main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem)
 
         print('Done and done.')
-
+    #
+    # def test_networks(self, timesteps_idx=4):
+    #     print('Starting testing...')
+    #
+    #     for i in range(timesteps_idx):
+    #         main.train_urnn_for_timestep_idx(i)
+    #     for i in range(timesteps_idx):
+    #         main.train_rnn_lstm_for_timestep_idx(i)
+    #
+    #     print('Done and done.')
+    #
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    # parser.add_argument("-tr", "--train", type=bool, default=True)
     parser.add_argument("-tr", '--train', dest='train', action='store_true')
+    parser.add_argument("-a", '--adding-problem', dest="adding_problem", action='store_true')
+    parser.add_argument("-m", '--memory-problem', dest="memory_problem", action='store_true')
 
     args = parser.parse_args()
 
     main=Main()
-    main.init_data()
+    main.init_data(args.adding_problem, args.memory_problem)
 
     if args.train:
-        main.train_networks()
+        main.train_networks(args.adding_problem, args.memory_problem)

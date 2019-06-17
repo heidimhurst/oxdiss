@@ -173,7 +173,8 @@ class TFRNN:
                       "|MeanEpochLoss:", '{0:8.4f}'.format(mean_epoch_loss),
                       "|ValidationSetLoss:", '{0:8.4f}'.format(validation_loss),'\n')
 
-    def test(self, dataset, batch_size, epochs):
+    def test(self, dataset):
+        # , batch_size, epochs):
         # session
         with tf.Session() as sess:
             # initialize global vars
