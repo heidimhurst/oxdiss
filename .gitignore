@@ -4,3 +4,4 @@ losses.txt
 *.DS_Store
 *results/
 *__pycache__/
+*tmp/

@@ -60,8 +60,13 @@ class Main:
             self.ap_batch_size=batch_size
             self.ap_epochs=epochs
 
-            self.ap_timesteps=[100, 200, 400, 750]
-            self.ap_samples=[30000, 50000, 40000, 100000]
+            # self.ap_timesteps=[100, 200, 400, 750]
+            # self.ap_samples=[30000, 50000, 40000, 100000]
+
+            # small for testing
+            self.ap_timesteps = [50]
+            self.ap_samples = [200]
+
             self.ap_data=[AddingProblemDataset(sample, timesteps, seed) for
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
             self.dummy_ap_data=AddingProblemDataset(100, 50) # samples, timestamps
@@ -69,18 +74,31 @@ class Main:
         tf.logging.info('Done.')
 
     def train_network(self, net, dataset, batch_size, epochs):
-        sample_len = str(dataset.get_sample_len())
-        tf.logging.info('Training network {} ... timesteps= {}'.format(net.name,sample_len))
-        net.train(dataset, batch_size, epochs)
-        # loss_list has one number for each batch (step)
-        serialize_loss(net.get_loss_list(), net.name + sample_len)
-        tf.logging.info('Training network ', net.name, ' done.')
 
-    def test_network(self, net, dataset):
+        # Add an op to initialize the variables.
+        init_op = tf.global_variables_initializer()
 
-        tf.logging.info('Testing network ', net.name)
-        net.test(dataset)
-        tf.logging.info('Testing network ', net.name, ' done.')
+        # Add ops to save and restore all the variables.
+        saver = tf.train.Saver()
+
+        with tf.Session() as sess:
+            sess.run(init_op)
+
+            sample_len = str(dataset.get_sample_len())
+            tf.logging.info('Training network {} ... timesteps= {}'.format(net.name,sample_len))
+            # net.summary()
+            net.train(dataset, batch_size, epochs)
+            # loss_list has one number for each batch (step)
+            serialize_loss(net.get_loss_list(), net.name + sample_len)
+
+            save_path = saver.save(sess, "./tmp/model_{}.ckpt".format(net.name))
+            print("Model saved in path: %s" % save_path)
+
+            # todo: move testing to somewhere else in the code
+            tf.logging.info("TESTING just for shits to see if it works")
+            net.test(dataset)
+
+        tf.logging.info('Training network {} done.'.format(net.name))
 
     def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem):
         tf.logging.info('Initializing and training URNNs for one timestep...')
@@ -204,37 +222,35 @@ class Main:
 
         tf.logging.info('Init and training networks for one timestep done.')
 
-    def train_networks(self, adding_problem, memory_problem, timesteps_idx=4):
+    def train_networks(self, adding_problem, memory_problem, urnn=True, lstm=False, timesteps_idx=1):
         tf.logging.info('Starting training...')
 
         # timesteps_idx=4
-        for i in range(timesteps_idx):
-            main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem)
-        for i in range(timesteps_idx):
-            main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem)
+        if urnn:
+            for i in range(timesteps_idx):
+                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem)
+        if lstm:
+            for i in range(timesteps_idx):
+                main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem)
 
         tf.logging.info('Done and done.')
-    #
-    # def test_networks(self, timesteps_idx=4):
-    #     tf.logging.info('Starting testing...')
-    #
-    #     for i in range(timesteps_idx):
-    #         main.train_urnn_for_timestep_idx(i)
-    #     for i in range(timesteps_idx):
-    #         main.train_rnn_lstm_for_timestep_idx(i)
-    #
-    #     tf.logging.info('Done and done.')
-    #
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-tr", '--train', dest='train', action='store_true')
+
     parser.add_argument("-a", '--adding-problem', dest="adding_problem", action='store_true')
     parser.add_argument("-m", '--memory-problem', dest="memory_problem", action='store_true')
+
     parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=50)
     parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=10)
+
+    # train urnn
     parser.add_argument("-u", '--urnn', dest="urnn", action="store_true")
+    # train lstm & rnn
+    parser.add_argument("-l", "--lstm", dest="lstm", action="store_true")
     # generate random data (i.e. not from seed)
     parser.add_argument("-r", '--randomize-data', dest="seed", action="store_false")
 
@@ -247,4 +263,6 @@ if __name__ == "__main__":
     main.init_data(args.adding_problem, args.memory_problem, args.batch_size, args.epochs, args.seed)
 
     if args.train:
-        main.train_networks(args.adding_problem, args.memory_problem)
+        main.train_networks(args.adding_problem, args.memory_problem, args.urnn, args.lstm)
+
+    # main.test_networks(args.adding_problem, args.memory_problem)

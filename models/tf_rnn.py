@@ -151,6 +151,7 @@ class TFRNN:
 
                     # evaluate
                     batch_loss = self.evaluate(sess, X_batch, Y_batch, training=True)
+                    # todo: make visualizable in tensorboard
 
                     # save the loss for later
                     self.loss_list.append(batch_loss)
@@ -172,6 +173,7 @@ class TFRNN:
                 print("Epoch Over:", '{0:3d}'.format(epoch_idx), 
                       "|MeanEpochLoss:", '{0:8.4f}'.format(mean_epoch_loss),
                       "|ValidationSetLoss:", '{0:8.4f}'.format(validation_loss),'\n')
+                # todo: write validation loss to tensorboard feed
 
     def test(self, dataset):
         # , batch_size, epochs):
