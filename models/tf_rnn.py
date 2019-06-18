@@ -124,8 +124,12 @@ class TFRNN:
         print('Network __init__ over. Number of trainable params=', t_params)
 
     def train(self, dataset, batch_size, epochs):
+
         # session
         with tf.Session() as sess:
+            # initialize loss
+            # batch_loss = tf.Variable(0., name="batch_loss")
+
             counter = 0;
             train_writer = tf.summary.FileWriter('./logs/1/train', sess.graph)
 
@@ -157,11 +161,13 @@ class TFRNN:
                     # Y_batch: [batch_size x time x num_target] or [batch_size x num_target] (single_output?)
                     X_batch, Y_batch = dataset.get_batch(batch_idx, batch_size)
 
+                    tf.summary.scalar("total_loss", self.total_loss)
+
                     # evaluate
                     summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
                     # todo: make visualizable in tensorboard in real time (ideally)
-                    tf.summary.scalar("batch_loss", batch_loss)
-                    print(batch_loss)
+                    # tf.summary.scalar("batch_loss", batch_loss)
+                    print("BATCH LOSS {}".format(batch_loss))
 
                     train_writer.add_summary(summary, counter)
 
