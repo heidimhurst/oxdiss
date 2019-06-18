@@ -52,11 +52,11 @@ class PermutationMatrix:
 # z: complex[batch_sz, num_units]
 
 def FFT(z):
-    return tf.fft(z)
+    return tf.fft(z, name="fourier")
 
 
 def IFFT(z):
-    return tf.ifft(z)
+    return tf.ifft(z, name="inv_fourier")
 
 
 def normalize(z):

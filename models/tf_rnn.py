@@ -71,10 +71,13 @@ class TFRNN:
         elif type(self.cell.state_size) == tf.contrib.rnn.LSTMStateTuple:
             self.dyn_rnn_init_states = tf.contrib.rnn.LSTMStateTuple(self.init_states[0], self.init_states[1])
 
-        # set up h->o parameters
-        self.w_ho = tf.get_variable("w_ho_"+self.name, shape=[num_out, self.output_size], 
-                                            initializer=tf.contrib.layers.xavier_initializer()) # fixme
-        self.b_o = tf.Variable(tf.zeros([num_out, 1]), name="b_o_"+self.name)
+        with tf.name_scope("hidden_to_output"):
+            # set up h->o parameters
+            self.w_ho = tf.get_variable("w_ho_"+self.name, shape=[num_out, self.output_size],
+                                                initializer=tf.contrib.layers.xavier_initializer()) # fixme
+            tf.summary.histogram("w_ho_"+self.name, self.w_ho) # tensorboard
+            self.b_o = tf.Variable(tf.zeros([num_out, 1]), name="b_o_"+self.name)
+            tf.summary.histogram("b_o_" + self.name, self.b_o) # tensorboard
 
         # run the dynamic rnn and get hidden layer outputs
         # outputs_h: [batch_size, max_time, self.output_size]
@@ -123,6 +126,9 @@ class TFRNN:
     def train(self, dataset, batch_size, epochs):
         # session
         with tf.Session() as sess:
+            counter = 0;
+            train_writer = tf.summary.FileWriter('./logs/1/train', sess.graph)
+
             # initialize global vars
             sess.run(tf.global_variables_initializer())
 
@@ -143,6 +149,8 @@ class TFRNN:
                 print("Epoch Starting:", epoch_idx, '\n')
                 # train on several minibatches
                 for batch_idx in range(num_batches):
+                    counter += 1 # for use with summary writer
+                    merge = tf.summary.merge_all()
 
                     # get one batch of data
                     # X_batch: [batch_size x time x num_in]
@@ -150,8 +158,11 @@ class TFRNN:
                     X_batch, Y_batch = dataset.get_batch(batch_idx, batch_size)
 
                     # evaluate
-                    batch_loss = self.evaluate(sess, X_batch, Y_batch, training=True)
-                    # todo: make visualizable in tensorboard
+                    summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
+                    # todo: make visualizable in tensorboard in real time (ideally)
+                    print(batch_loss)
+
+                    train_writer.add_summary(summary, counter)
 
                     # save the loss for later
                     self.loss_list.append(batch_loss)
@@ -168,7 +179,7 @@ class TFRNN:
                               "|BatchLoss:", '{0:8.4f}'.format(batch_loss))
 
                 # validate after each epoch
-                validation_loss = self.evaluate(sess, X_val, Y_val)
+                validation_loss = self.evaluate(sess, X_val, Y_val, merge)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
                 print("Epoch Over:", '{0:3d}'.format(epoch_idx), 
                       "|MeanEpochLoss:", '{0:8.4f}'.format(mean_epoch_loss),
@@ -188,7 +199,7 @@ class TFRNN:
             test_loss = self.evaluate(sess, X_test, Y_test)
             print("Test set loss:", test_loss)
 
-    def evaluate(self, sess, X, Y, training=False):
+    def evaluate(self, sess, X, Y, merge=None, training=False):
 
         # fill (X,Y) placeholders
         feed_dict = {self.input_x: X, self.input_y: Y}
@@ -201,7 +212,12 @@ class TFRNN:
 
         # run and return the loss
         if training:
-            loss, _ = sess.run([self.total_loss, self.train_step], feed_dict)
+            if merge is None:
+                tf.log.ERROR("No merge included - summary cannot be written")
+                loss, _ = sess.run([self.total_loss, self.train_step], feed_dict)
+            else:
+                summary, loss, _ = sess.run([merge, self.total_loss, self.train_step], feed_dict)
+                return summary, loss
         else:
             loss = sess.run([self.total_loss], feed_dict)[0]
         return loss

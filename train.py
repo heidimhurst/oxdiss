@@ -90,6 +90,7 @@ class Main:
             net.train(dataset, batch_size, epochs)
             # loss_list has one number for each batch (step)
             serialize_loss(net.get_loss_list(), net.name + sample_len)
+            # todo: get accuracy, not just loss
 
             save_path = saver.save(sess, "./tmp/model_{}.ckpt".format(net.name))
             print("Model saved in path: %s" % save_path)
@@ -116,7 +117,7 @@ class Main:
                 single_output=False,
                 rnn_cell=URNNCell,
                 activation_hidden=None, # modReLU
-                # activation_hidden= modReLU,
+                # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
                 optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
@@ -135,8 +136,8 @@ class Main:
                 num_target=1,
                 single_output=True,
                 rnn_cell=URNNCell,
-                # activation_hidden=None, # modReLU
-                activation_hidden= modReLU,
+                activation_hidden=None, # modReLU
+                # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
                 optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 loss_function=tf.squared_difference)
