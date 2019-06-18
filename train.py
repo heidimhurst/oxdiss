@@ -6,6 +6,8 @@ from models.urnn_cell import URNNCell
 from models.householder_cell import REFLECTCell
 from models.component_matrices import modReLU
 
+from glob import glob
+
 import argparse
 import numpy as np
 
@@ -65,7 +67,7 @@ class Main:
 
             # small for testing
             self.ap_timesteps = [50]
-            self.ap_samples = [200]
+            self.ap_samples = [5000]
 
             self.ap_data=[AddingProblemDataset(sample, timesteps, seed) for
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
@@ -101,7 +103,7 @@ class Main:
 
         tf.logging.info('Training network {} done.'.format(net.name))
 
-    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem):
+    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default"):
         tf.logging.info('Initializing and training URNNs for one timestep...')
 
         if memory_problem:
@@ -110,6 +112,7 @@ class Main:
             tf.reset_default_graph()
             self.cm_urnn=TFRNN(
                 name="cm_urnn",
+                log_output=log_output,
                 num_in=1,
                 num_hidden=128,
                 num_out=10,
@@ -130,6 +133,7 @@ class Main:
             tf.reset_default_graph()
             self.ap_urnn=TFRNN(
                 name="ap_urnn",
+                log_output=log_output,
                 num_in=2,
                 num_hidden=512,
                 num_out=1,
@@ -147,7 +151,7 @@ class Main:
         tf.logging.info('Init and training URNNs for one timestep done.')
 
 
-    def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem):
+    def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default"):
         tf.logging.info('Initializing and training RNN&LSTM for one timestep...')
 
         if memory_problem:
@@ -223,18 +227,39 @@ class Main:
 
         tf.logging.info('Init and training networks for one timestep done.')
 
-    def train_networks(self, adding_problem, memory_problem, urnn=True, lstm=False, timesteps_idx=1):
+    def train_networks(self, adding_problem, memory_problem, urnn=True, lstm=False,
+                                                             log_output="default", timesteps_idx=1):
         tf.logging.info('Starting training...')
 
         # timesteps_idx=4
         if urnn:
             for i in range(timesteps_idx):
-                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem)
+                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem, log_output)
         if lstm:
             for i in range(timesteps_idx):
-                main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem)
+                main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem, log_output)
 
         tf.logging.info('Done and done.')
+
+def increment_trial(logs="./logs/"):
+    """
+
+    :param logs: Folder containing log directories (one directory per trial ideally)
+    :return:
+    """
+    # get log data
+    folders = glob(logs+"*/")
+
+    # cut to just folder name
+    folders = [fold[len(logs):-1] for fold in folders]
+
+    # cut to exclude everything after first underscore
+    folders = [fold.split("_")[0] for fold in folders]
+
+    # get largest integer
+    next_trial = max([int(fold) for fold in folders if fold.isdigit()]) + 1
+
+    return str(next_trial)
 
 
 if __name__ == "__main__":
@@ -255,6 +280,9 @@ if __name__ == "__main__":
     # generate random data (i.e. not from seed)
     parser.add_argument("-r", '--randomize-data', dest="seed", action="store_false")
 
+    # storage location for runs
+    parser.add_argument("-o", "--output", dest="output", type=str, default=increment_trial())
+
     args = parser.parse_args()
 
     # set logging verbosity to view commands/info
@@ -264,6 +292,6 @@ if __name__ == "__main__":
     main.init_data(args.adding_problem, args.memory_problem, args.batch_size, args.epochs, args.seed)
 
     if args.train:
-        main.train_networks(args.adding_problem, args.memory_problem, args.urnn, args.lstm)
+        main.train_networks(args.adding_problem, args.memory_problem, args.urnn, args.lstm, args.output)
 
     # main.test_networks(args.adding_problem, args.memory_problem)

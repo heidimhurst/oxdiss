@@ -13,6 +13,7 @@ class TFRNN:
     def __init__(
         self,
         name,
+        log_output,
         rnn_cell,
         num_in,
         num_hidden, 
@@ -26,9 +27,10 @@ class TFRNN:
 
         # self
         self.name = name
+        self.log_output = log_output
         self.loss_list = []
         self.init_state_C = np.sqrt(3 / (2 * num_hidden))
-        self.log_dir = './logs/1/'
+        self.log_dir = './logs/{}_{}/logs'.format(self.log_output, self.name)
         self.writer = tf.summary.FileWriter(self.log_dir)
 
         # init cell
@@ -129,9 +131,10 @@ class TFRNN:
         with tf.Session() as sess:
             # initialize loss
             # batch_loss = tf.Variable(0., name="batch_loss")
+            tf.summary.scalar("total_loss", self.total_loss)
 
             counter = 0;
-            train_writer = tf.summary.FileWriter('./logs/1/train', sess.graph)
+            train_writer = tf.summary.FileWriter('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
 
             # initialize global vars
             sess.run(tf.global_variables_initializer())
@@ -161,7 +164,7 @@ class TFRNN:
                     # Y_batch: [batch_size x time x num_target] or [batch_size x num_target] (single_output?)
                     X_batch, Y_batch = dataset.get_batch(batch_idx, batch_size)
 
-                    tf.summary.scalar("total_loss", self.total_loss)
+
 
                     # evaluate
                     summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
