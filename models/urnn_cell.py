@@ -76,7 +76,7 @@ class URNNCell(tf.contrib.rnn.RNNCell):
             # prepare state linear combination (always complex!)
             state_c = tf.complex( state[:, :self._num_units],
                                   state[:, self._num_units:] )
-    
+
             state_mul = self.D1.mul(state_c)
             state_mul = mat.FFT(state_mul)
             state_mul = self.R1.mul(state_mul)

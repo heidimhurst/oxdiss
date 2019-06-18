@@ -28,7 +28,7 @@ class TFRNN:
         self.name = name
         self.loss_list = []
         self.init_state_C = np.sqrt(3 / (2 * num_hidden))
-        self.log_dir = './logs/'
+        self.log_dir = './logs/1/'
         self.writer = tf.summary.FileWriter(self.log_dir)
 
         # init cell
@@ -139,8 +139,8 @@ class TFRNN:
             # init loss list
             self.loss_list = []
             print("Starting training for", self.name)
-            print("NumEpochs:", '{0:3d}'.format(epochs), 
-                  "|BatchSize:", '{0:3d}'.format(batch_size), 
+            print("NumEpochs:", '{0:3d}'.format(epochs),
+                  "|BatchSize:", '{0:3d}'.format(batch_size),
                   "|NumBatches:", '{0:5d}'.format(num_batches),'\n')
 
             # train for several epochs
@@ -160,6 +160,7 @@ class TFRNN:
                     # evaluate
                     summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
                     # todo: make visualizable in tensorboard in real time (ideally)
+                    tf.summary.scalar("batch_loss", batch_loss)
                     print(batch_loss)
 
                     train_writer.add_summary(summary, counter)
@@ -170,18 +171,18 @@ class TFRNN:
                     # plot
                     if batch_idx%10 == 0:
                         total_examples = batch_size * num_batches * epoch_idx + batch_size * batch_idx + batch_size
-                        
+
                         # print stats
                         serialize_to_file(self.loss_list)
-                        print("Epoch:", '{0:3d}'.format(epoch_idx), 
-                              "|Batch:", '{0:3d}'.format(batch_idx), 
+                        print("Epoch:", '{0:3d}'.format(epoch_idx),
+                              "|Batch:", '{0:3d}'.format(batch_idx),
                               "|TotalExamples:", '{0:5d}'.format(total_examples), # total training examples
                               "|BatchLoss:", '{0:8.4f}'.format(batch_loss))
 
                 # validate after each epoch
                 validation_loss = self.evaluate(sess, X_val, Y_val, merge)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
-                print("Epoch Over:", '{0:3d}'.format(epoch_idx), 
+                print("Epoch Over:", '{0:3d}'.format(epoch_idx),
                       "|MeanEpochLoss:", '{0:8.4f}'.format(mean_epoch_loss),
                       "|ValidationSetLoss:", '{0:8.4f}'.format(validation_loss),'\n')
                 # todo: write validation loss to tensorboard feed
