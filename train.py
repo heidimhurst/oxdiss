@@ -128,24 +128,45 @@ class Main:
                                self.cm_batch_size, self.cm_epochs)
 
         if adding_problem:
+            # tf.logging.info('Training urnn for adding problem ...')
+            # # AP
+            # tf.reset_default_graph()
+            # self.ap_urnn=TFRNN(
+            #     name="ap_urnn",
+            #     log_output=log_output,
+            #     num_in=2,
+            #     num_hidden=512,
+            #     num_out=1,
+            #     num_target=1,
+            #     single_output=True,
+            #     rnn_cell=URNNCell,
+            #     activation_hidden=None, # modReLU
+            #     # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
+            #     activation_out=tf.identity,
+            #     optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+            #     loss_function=tf.squared_difference)
+            # self.train_network(self.ap_urnn, self.ap_data[idx],
+            #                    self.ap_batch_size, self.ap_epochs)
+
+            # ==== HOUSEHOLDER =====
             tf.logging.info('Training urnn for adding problem ...')
             # AP
             tf.reset_default_graph()
-            self.ap_urnn=TFRNN(
-                name="ap_urnn",
+            self.ap_h_urnn=TFRNN(
+                name="ap_h_urnn",
                 log_output=log_output,
                 num_in=2,
                 num_hidden=512,
                 num_out=1,
                 num_target=1,
                 single_output=True,
-                rnn_cell=URNNCell,
+                rnn_cell=REFLECTCell,
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
                 optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 loss_function=tf.squared_difference)
-            self.train_network(self.ap_urnn, self.ap_data[idx],
+            self.train_network(self.ap_h_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
         tf.logging.info('Init and training URNNs for one timestep done.')
