@@ -36,24 +36,26 @@ class Main:
         print('Initializing and training URNNs for one timestep...')
 
         tf.reset_default_graph()
-        self.mnist_lstm=TFRNN(
-            name="mnist_lstm",
-            num_in=1,
-            num_hidden=128,
-            num_out=10,
-            num_target=1,
-            single_output=True,
-            rnn_cell=tf.contrib.rnn.LSTMCell,
-            activation_hidden=tf.tanh,
-            activation_out=tf.identity,
-            optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
-        self.train_network(self.mnist_lstm, self.data, 
-                           self.batch_size, self.epochs)
-        
+        # self.mnist_lstm=TFRNN(
+        #     name="mnist_lstm",
+        #     log_output= "",
+        #     num_in=1,
+        #     num_hidden=128,
+        #     num_out=10,
+        #     num_target=1,
+        #     single_output=True,
+        #     rnn_cell=tf.contrib.rnn.LSTMCell,
+        #     activation_hidden=tf.tanh,
+        #     activation_out=tf.identity,
+        #     optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+        #     loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+        # self.train_network(self.mnist_lstm, self.data,
+        #                    self.batch_size, self.epochs)
+        #
         tf.reset_default_graph()
         self.mnist_urnn=TFRNN(
             name="mnist_urnn",
+            log_output= "",
             num_in=1,
             num_hidden=512,
             num_out=10,

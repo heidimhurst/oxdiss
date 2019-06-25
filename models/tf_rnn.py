@@ -3,11 +3,41 @@ import tensorflow as tf
 from .urnn_cell import URNNCell
 from .householder_cell import REFLECTCell
 
-def serialize_to_file(loss):
-    file=open('losses.txt', 'w')
+from datetime import datetime
+from glob import glob
+import os
+
+import sys
+
+
+def serialize_to_file(loss, outfolder=""):
+    file=open(os.path.join(outfolder,'losses.txt'), 'w')
     for l in loss:
         file.write("{0}\n".format(l))
     file.close()
+
+
+def increment_trial(logdir):
+    # creates a new folder for output logs based on time & date
+    # format: MM_DD_RR where rr is the run index
+
+    # create folder prefix with day & time
+    folder_prefix = "{:02d}_{:02d}_".format(datetime.now().month, datetime.now().day)
+
+    # find matching folders
+    folders = glob(os.path.join(logdir, "{}*".format(folder_prefix)))
+
+    # get just trial numbers
+    folders = [fold.split("_")[2] for fold in folders]
+    trial_numbs = [int(fold) for fold in folders if fold.isdigit()]
+    trial_numbs.append(0)
+    next_trial = max(trial_numbs) + 1
+
+    # create trial name
+    trial_name = "{}{}".format(folder_prefix, next_trial)
+
+    return trial_name
+
 
 class TFRNN:
     def __init__(
@@ -27,10 +57,14 @@ class TFRNN:
 
         # self
         self.name = name
-        self.log_output = log_output
+        self.problem = self.name.split("_")[0]
+        self.net_type = self.name.split("_")[1]
         self.loss_list = []
         self.init_state_C = np.sqrt(3 / (2 * num_hidden))
-        self.log_dir = './logs/{}_{}/logs'.format(self.log_output, self.name)
+        # self.log_dir = './logs/{}_{}/logs'.format(self.log_output, self.name)
+        top_dir = "./logs/{}/{}/".format(self.problem, self.net_type)
+        self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, increment_trial(top_dir))
+        self.log_output = self.log_dir[:-5]
         self.writer = tf.summary.FileWriter(self.log_dir)
 
         # init cell
@@ -99,6 +133,11 @@ class TFRNN:
             out_h_mul = tf.einsum('ijk,kl->ijl', outputs_h, tf.transpose(self.w_ho))
             preact = out_h_mul + tf.transpose(self.b_o)
             outputs_o = activation_out(preact) # [batch_size, time_step, num_out]
+
+        print("outputs_o")
+        tf.print(outputs_o, output_stream=tf.compat.v1.logging.warning)
+        # tf.Print(outputs_o, [outputs_o])
+        print("==endoutputs==")
             
         # calculate losses and set up optimizer
 
@@ -123,18 +162,27 @@ class TFRNN:
 
         # number of trainable params
         t_params = np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])
+        all_params = tf.trainable_variables()
+        tf.print(self.w_ho)
+        print(self.w_ho)
+        # print(self.w_ho.eval())
+
         print('Network __init__ over. Number of trainable params=', t_params)
 
     def train(self, dataset, batch_size, epochs):
 
         # session
         with tf.Session() as sess:
+            # print(self.w_ho.eval())
             # initialize loss
             # batch_loss = tf.Variable(0., name="batch_loss")
             tf.summary.scalar("total_loss", self.total_loss)
+            # validation_loss = 0
+            # tf.summary.scalar("validation_loss", validation_loss)
 
             counter = 0;
-            train_writer = tf.summary.FileWriter('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
+            train_writer = tf.summary.FileWriter('{}/train'.format(self.log_output), sess.graph)
+            # train_writer = tf.contrib.summary('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
 
             # initialize global vars
             sess.run(tf.global_variables_initializer())
@@ -145,15 +193,14 @@ class TFRNN:
 
             # init loss list
             self.loss_list = []
-            print("Starting training for", self.name)
-            print("NumEpochs:", '{0:3d}'.format(epochs),
-                  "|BatchSize:", '{0:3d}'.format(batch_size),
-                  "|NumBatches:", '{0:5d}'.format(num_batches),'\n')
+            tf.logging.info("Starting training for {}".format(self.name))
+            tf.logging.info("NumEpochs: {0:3d} |  BatchSize: {1:3d} |  NumBatches: {2:5d} \n".format(epochs,
+                                                                                              batch_size,
+                                                                                              num_batches))
 
             # train for several epochs
             for epoch_idx in range(epochs):
-
-                print("Epoch Starting:", epoch_idx, '\n')
+                tf.logging.info("Epoch Starting:{} \n ".format(epoch_idx))
                 # train on several minibatches
                 for batch_idx in range(num_batches):
                     counter += 1 # for use with summary writer
@@ -173,6 +220,7 @@ class TFRNN:
                     print("BATCH LOSS {}".format(batch_loss))
 
                     train_writer.add_summary(summary, counter)
+                    self.writer.add_summary(summary, counter)
 
                     # save the loss for later
                     self.loss_list.append(batch_loss)
@@ -182,18 +230,19 @@ class TFRNN:
                         total_examples = batch_size * num_batches * epoch_idx + batch_size * batch_idx + batch_size
 
                         # print stats
-                        serialize_to_file(self.loss_list)
-                        print("Epoch:", '{0:3d}'.format(epoch_idx),
-                              "|Batch:", '{0:3d}'.format(batch_idx),
-                              "|TotalExamples:", '{0:5d}'.format(total_examples), # total training examples
-                              "|BatchLoss:", '{0:8.4f}'.format(batch_loss))
+                        serialize_to_file(self.loss_list, outfolder=self.log_dir)
+                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f}".format(epoch_idx, batch_idx,
+                                                                         total_examples, batch_loss))
 
                 # validate after each epoch
-                validation_loss = self.evaluate(sess, X_val, Y_val, merge)
+                summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
+
+                tf.summary.scalar("validation_loss", validation_loss)
+
+                train_writer.add_summary(summary, counter)
+                self.writer.add_summary(summary, counter)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
-                print("Epoch Over:", '{0:3d}'.format(epoch_idx),
-                      "|MeanEpochLoss:", '{0:8.4f}'.format(mean_epoch_loss),
-                      "|ValidationSetLoss:", '{0:8.4f}'.format(validation_loss),'\n')
+                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss))
                 # todo: write validation loss to tensorboard feed
 
     def test(self, dataset):
@@ -203,10 +252,24 @@ class TFRNN:
             # initialize global vars
             sess.run(tf.global_variables_initializer())
 
+
+            # tf.summary.scalar("total_loss", self.total_loss)
+            # validation_loss = 0
+            # tf.summary.scalar("validation_loss", validation_loss)
+
+            test_writer = tf.summary.FileWriter('{}/test'.format(self.log_output), sess.graph)
+
             # fetch validation and test sets
             X_test, Y_test = dataset.get_test_data()
 
-            test_loss = self.evaluate(sess, X_test, Y_test)
+            merge=tf.summary.merge_all()
+
+            summary, test_loss = self.evaluate(sess, X_test, Y_test, merge)
+
+            # todo: this is writing to incorrect variable
+            tf.summary.scalar("test_loss", test_loss)
+
+            test_writer.add_summary(summary)
             print("Test set loss:", test_loss)
 
     def evaluate(self, sess, X, Y, merge=None, training=False):
@@ -229,7 +292,11 @@ class TFRNN:
                 summary, loss, _ = sess.run([merge, self.total_loss, self.train_step], feed_dict)
                 return summary, loss
         else:
-            loss = sess.run([self.total_loss], feed_dict)[0]
+            summary, loss = sess.run([merge, self.total_loss], feed_dict)
+            print(summary)
+            print(loss)
+            return summary, loss
+
         return loss
 
     # loss list getter

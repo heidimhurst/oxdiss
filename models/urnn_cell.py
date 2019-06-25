@@ -39,6 +39,10 @@ class URNNCell(tf.contrib.rnn.RNNCell):
                 tf.summary.histogram("D1", self.D1.w) # tensorboard
                 tf.summary.histogram("D2", self.D2.w)  # tensorboard
                 tf.summary.histogram("D3", self.D3.w)  # tensorboard
+                tf.summary.histogram("R1_re", self.R1.re)
+                tf.summary.histogram("R1_im", self.R1.im)
+                tf.summary.histogram("R2_re", self.R2.re)
+                tf.summary.histogram("R2_im", self.R2.im)
     # needed properties
 
     @property

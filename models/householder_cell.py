@@ -4,7 +4,7 @@ import models.component_matrices as mat
 
 # 4k / 7k trainable params
 class REFLECTCell(tf.contrib.rnn.RNNCell):
-    """The most basic URNN cell.
+    """URNN Cell consisting of only a single reflection matrix.
     Args:
         num_units (int): The number of units in the LSTM cell, hidden layer size.
         num_in: Input vector size, input layer size.
