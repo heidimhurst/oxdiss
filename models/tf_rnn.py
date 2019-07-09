@@ -6,6 +6,7 @@ from .householder_cell import REFLECTCell
 from datetime import datetime
 from glob import glob
 import os
+import json
 
 import sys
 
@@ -17,26 +18,29 @@ def serialize_to_file(loss, outfolder=""):
     file.close()
 
 
+
 def increment_trial(logdir):
     # creates a new folder for output logs based on time & date
     # format: MM_DD_RR where rr is the run index
 
-    # create folder prefix with day & time
-    folder_prefix = "{:02d}_{:02d}_".format(datetime.now().month, datetime.now().day)
+    # create folder prefix with date
+    folder_prefix = "{:02d}_{:02d}".format(datetime.now().month, datetime.now().day)
 
     # find matching folders
-    folders = glob(os.path.join(logdir, "{}*".format(folder_prefix)))
+    folders = glob(os.path.join(logdir, "{}/*".format(folder_prefix)))
 
     # get just trial numbers
-    folders = [fold.split("_")[2] for fold in folders]
+    folders = [fold.split("/")[-1] for fold in folders]
     trial_numbs = [int(fold) for fold in folders if fold.isdigit()]
     trial_numbs.append(0)
     next_trial = max(trial_numbs) + 1
 
     # create trial name
-    trial_name = "{}{}".format(folder_prefix, next_trial)
+    trial_name = "{}/{}".format(folder_prefix, next_trial)
 
     return trial_name
+
+
 
 
 class TFRNN:
@@ -53,7 +57,8 @@ class TFRNN:
         activation_hidden,
         activation_out,
         optimizer,
-        loss_function):
+        loss_function,
+        output_info = {}):
 
         # self
         self.name = name
@@ -169,6 +174,18 @@ class TFRNN:
 
         print('Network __init__ over. Number of trainable params=', t_params)
 
+        # output info for later use
+        self.start_time = datetime.now()
+        self.output_info = output_info
+        self.output_info.update({"name": self.name, "net_type": self.net_type, "problem":self.problem,
+                                 "directory": self.log_dir, "optimizer": optimizer.get_name(),
+                                 "num_in": num_in, "num_out": num_out, "num_hidden": num_hidden,
+                                 "num_target": num_target, "cell_type": self.cell._base_name,
+                                 "trainable_params": int(t_params)})
+
+        # save info about trial run for later use/analysis/recordkeeping
+        self.save_output_info()
+
     def train(self, dataset, batch_size, epochs):
 
         # session
@@ -245,6 +262,8 @@ class TFRNN:
                 tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss))
                 # todo: write validation loss to tensorboard feed
 
+        self.save_training_time()
+
     def test(self, dataset):
         # , batch_size, epochs):
         # session
@@ -302,3 +321,18 @@ class TFRNN:
     # loss list getter
     def get_loss_list(self):
         return self.loss_list
+
+    # save trial info to file
+    def save_output_info(self):
+
+        with open(os.path.join(self.log_dir, "info.txt"), "w") as outfile:
+            json.dump(self.output_info, outfile)
+
+    # add info about how long trial took to train
+    def save_training_time(self):
+
+        with open(os.path.join(self.log_dir, "info.txt"), "w") as json_file:
+            duration = datetime.now() - self.start_time
+            self.output_info["end_time"] = datetime.now().strftime("%X")
+            self.output_info["training_time"] = duration.total_seconds()
+            json.dump(self.output_info, json_file)

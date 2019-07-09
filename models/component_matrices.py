@@ -15,6 +15,15 @@ class DiagonalMatrix():
         return self.vec * z
 
 
+# # Householder unitary matrix
+# class HouseholderMatrix():
+#     # householder matrix is H = I - 2vv^* (where v is normalized)
+#     def __init__(self, name, num_units):
+#         # create reflection matrix and add identity?
+#
+#     def mul(self, z):
+#         return
+
 # Reflection unitary matrix
 class ReflectionMatrix():
     def __init__(self, name, num_units):
@@ -23,7 +32,7 @@ class ReflectionMatrix():
         self.re = tf.Variable(tf.random_uniform([num_units], minval=-1, maxval=1), name=name + "_re")
         self.im = tf.Variable(tf.random_uniform([num_units], minval=-1, maxval=1), name=name + "_im")
         self.v = tf.complex(self.re, self.im)  # [num_units]
-        # self.v = normalize(self.v)
+        self.v = normalize(self.v)
         self.vstar = tf.conj(self.v)  # [num_units]
 
     # [batch_sz, num_units]

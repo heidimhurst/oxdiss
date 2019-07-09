@@ -7,6 +7,7 @@ from models.householder_cell import REFLECTCell
 from models.component_matrices import modReLU
 
 from glob import glob
+from datetime import datetime
 
 import argparse
 import numpy as np
@@ -106,7 +107,18 @@ class Main:
     def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default"):
         tf.logging.info('Initializing and training URNNs for one timestep...')
 
+        self.output_info = {"run_date":datetime.now().strftime("%x"),
+                            "start_time": datetime.now().strftime("%X"),
+                            "learning_rate": glob_learning_rate,
+                            "decay": glob_decay}
+
         if memory_problem:
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.cm_batch_size
+            self.output_info["epochs"] = self.cm_epochs
+            self.output_info["timesteps"] = self.cm_timesteps[idx]
+            self.output_info["samples"] = self.cm_samples
+
             tf.logging.info('Training urnn for memory problem...')
             # CM
             tf.reset_default_graph()
@@ -122,12 +134,20 @@ class Main:
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
+                # optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                output_info=self.output_info)
             self.train_network(self.cm_urnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
         if adding_problem:
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.ap_batch_size
+            self.output_info["epochs"] = self.ap_epochs
+            self.output_info["timesteps"] = self.ap_timesteps[idx]
+            self.output_info["samples"] = self.ap_samples[0]
+
             tf.logging.info('Training urnn for adding problem ...')
             # AP
             tf.reset_default_graph()
@@ -143,8 +163,10 @@ class Main:
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
-                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-                loss_function=tf.squared_difference)
+                # optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                optimizer=tf.train.AdadeltaOptimizer(learning_rate=glob_learning_rate),
+                loss_function=tf.squared_difference,
+                output_info=self.output_info)
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
