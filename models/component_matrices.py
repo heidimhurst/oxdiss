@@ -15,15 +15,6 @@ class DiagonalMatrix():
         return self.vec * z
 
 
-# # Householder unitary matrix
-# class HouseholderMatrix():
-#     # householder matrix is H = I - 2vv^* (where v is normalized)
-#     def __init__(self, name, num_units):
-#         # create reflection matrix and add identity?
-#
-#     def mul(self, z):
-#         return
-
 # Reflection unitary matrix
 class ReflectionMatrix():
     def __init__(self, name, num_units):
