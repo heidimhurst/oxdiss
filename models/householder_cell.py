@@ -29,7 +29,7 @@ class REFLECTCell(tf.contrib.rnn.RNNCell):
                 tf.summary.histogram("b_h", self.b_h) # tensorboard
 
             with tf.name_scope("hidden"):
-                # elementary unitary matrices to get the big one
+                # single unitary matrix
                 self.R1 = mat.ReflectionMatrix("R1", num_units)
                 tf.summary.histogram("R1_im", self.R1.im)
                 tf.summary.histogram("R1_re", self.R1.re)

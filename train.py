@@ -11,6 +11,7 @@ from datetime import datetime
 
 import argparse
 import numpy as np
+import os
 
 '''
         name,
@@ -31,16 +32,20 @@ loss_path='results/'
 glob_learning_rate = 0.001
 glob_decay = 0.9
 
+
 def baseline_cm(timesteps):
     return 10*np.log(8) / timesteps
 
+
 def baseline_ap():
     return 0.167
+
 
 def serialize_loss(loss, name):
     file=open(loss_path + name, 'w')
     for l in loss:
         file.write("{0}\n".format(l))
+
 
 class Main:
     def init_data(self, adding_problem, memory_problem, batch_size=50, epochs=10, seed=True):
@@ -95,7 +100,7 @@ class Main:
             serialize_loss(net.get_loss_list(), net.name + sample_len)
             # todo: get accuracy, not just loss
 
-            save_path = saver.save(sess, "./tmp/model_{}.ckpt".format(net.name))
+            save_path = saver.save(sess, os.path.join(net.log_dir,"model_{}.ckpt".format(net.name)))
             print("Model saved in path: %s" % save_path)
 
             # todo: move testing to somewhere else in the code
@@ -104,7 +109,10 @@ class Main:
 
         tf.logging.info('Training network {} done.'.format(net.name))
 
-    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default"):
+    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default", cell_type="urnn"):
+
+        cells = {"urnn": URNNCell, "householder": REFLECTCell}
+
         tf.logging.info('Initializing and training URNNs for one timestep...')
 
         self.output_info = {"run_date":datetime.now().strftime("%x"),
@@ -123,14 +131,14 @@ class Main:
             # CM
             tf.reset_default_graph()
             self.cm_urnn=TFRNN(
-                name="cm_urnn",
+                name="cm_{}".format(cell_type),
                 log_output=log_output,
                 num_in=1,
                 num_hidden=128,
                 num_out=10,
                 num_target=1,
                 single_output=False,
-                rnn_cell=URNNCell,
+                rnn_cell=cells[cell_type],
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
@@ -152,14 +160,14 @@ class Main:
             # AP
             tf.reset_default_graph()
             self.ap_urnn=TFRNN(
-                name="ap_urnn",
+                name="ap_{}".format(cell_type),
                 log_output=log_output,
                 num_in=2,
                 num_hidden=512,
                 num_out=1,
                 num_target=1,
                 single_output=True,
-                rnn_cell=URNNCell,
+                rnn_cell=cells[cell_type],
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
@@ -170,26 +178,6 @@ class Main:
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
-            # ==== HOUSEHOLDER =====
-            # tf.logging.info('Training HOUSEHOLDER urnn for adding problem ...')
-            # # AP
-            # tf.reset_default_graph()
-            # self.ap_hurnn=TFRNN(
-            #     name="ap_hurnn",
-            #     log_output=log_output,
-            #     num_in=2,
-            #     num_hidden=512,
-            #     num_out=1,
-            #     num_target=1,
-            #     single_output=True,
-            #     rnn_cell=REFLECTCell,
-            #     activation_hidden=None, # modReLU
-            #     # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
-            #     activation_out=tf.identity,
-            #     optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-            #     loss_function=tf.squared_difference)
-            # self.train_network(self.ap_hurnn, self.ap_data[idx],
-            #                    self.ap_batch_size, self.ap_epochs)
 
         tf.logging.info('Init and training URNNs for one timestep done.')
 
@@ -271,18 +259,19 @@ class Main:
         tf.logging.info('Init and training networks for one timestep done.')
 
     def train_networks(self, adding_problem, memory_problem, urnn=True, lstm=False,
-                                                             log_output="default", timesteps_idx=1):
+                       log_output="default", timesteps_idx=1, cell_type="urnn"):
         tf.logging.info('Starting training...')
 
         # timesteps_idx=4
         if urnn:
             for i in range(timesteps_idx):
-                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem, log_output)
+                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem, log_output, cell_type)
         if lstm:
             for i in range(timesteps_idx):
                 main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem, log_output)
 
         tf.logging.info('Done and done.')
+
 
 def increment_trial(logs="./logs/"):
     """
@@ -316,6 +305,9 @@ if __name__ == "__main__":
     parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=50)
     parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=10)
 
+    # specify cell type for URNN (options at present are 'householder' and 'urnn')
+    parser.add_argument("-c", '--cell-type', dest="cell_type", type=str, default="urnn")
+
     # train urnn
     parser.add_argument("-u", '--urnn', dest="urnn", action="store_true")
     # train lstm & rnn
@@ -328,16 +320,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # enagle eager execution for ease of printing/debugging
+    # enable eager execution for ease of printing/debugging
     # tf.compat.v1.enable_eager_execution()
 
     # set logging verbosity to view commands/info
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    main=Main()
+    # print cell type info
+    tf.logging.info("URNN cell type set to {}".format(args.cell_type))
+
+
+    main = Main()
     main.init_data(args.adding_problem, args.memory_problem, args.batch_size, args.epochs, args.seed)
 
     if args.train:
-        main.train_networks(args.adding_problem, args.memory_problem, args.urnn, args.lstm, args.output)
+        main.train_networks(args.adding_problem, args.memory_problem, args.urnn,
+                            args.lstm, args.output, cell_type=args.cell_type)
 
     # main.test_networks(args.adding_problem, args.memory_problem)
