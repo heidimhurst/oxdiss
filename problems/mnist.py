@@ -19,4 +19,4 @@ class MnistProblemDataset(Dataset):
         self.Y_test = mnist.test.labels
 
     def generate(self, num_samples):
-        pass 
+        pass

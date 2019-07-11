@@ -27,7 +27,7 @@ import os
         loss_function):
 '''
 
-loss_path='results/'
+loss_path = 'results/'
 
 glob_learning_rate = 0.001
 glob_decay = 0.9
@@ -78,7 +78,7 @@ class Main:
 
             self.cm_timesteps=[120, 220, 320, 520]
             self.cm_samples=100000
-            self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps, seed) for timesteps in self.cm_timesteps]
+            self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps, options["seed"]) for timesteps in self.cm_timesteps]
             self.dummy_cm_data=CopyingMemoryProblemDataset(100, 50) # samples, timestamps
 
         if options["adding_problem"]:
@@ -163,7 +163,7 @@ class Main:
                 num_target=1,
                 single_output=False,
                 rnn_cell=cell,
-                activation_hidden=None, # modReLU
+                activation_hidden=None,  # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
