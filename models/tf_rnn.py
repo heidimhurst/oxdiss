@@ -115,10 +115,10 @@ class TFRNN:
         with tf.name_scope("hidden_to_output"):
             # set up h->o parameters
             self.w_ho = tf.get_variable("w_ho_"+self.name, shape=[num_out, self.output_size],
-                                                initializer=tf.contrib.layers.xavier_initializer()) # fixme
-            tf.summary.histogram("w_ho_"+self.name, self.w_ho) # tensorboard
+                                                initializer=tf.contrib.layers.xavier_initializer())  # fixme
+            tf.summary.histogram("w_ho_"+self.name, self.w_ho)  # tensorboard
             self.b_o = tf.Variable(tf.zeros([num_out, 1]), name="b_o_"+self.name)
-            tf.summary.histogram("b_o_" + self.name, self.b_o) # tensorboard
+            tf.summary.histogram("b_o_" + self.name, self.b_o)  # tensorboard
 
         # run the dynamic rnn and get hidden layer outputs
         # outputs_h: [batch_size, max_time, self.output_size]

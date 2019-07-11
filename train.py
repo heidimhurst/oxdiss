@@ -32,6 +32,24 @@ loss_path='results/'
 glob_learning_rate = 0.001
 glob_decay = 0.9
 
+default_options = {"adding_problem": True,
+                   "memory_problem": True,
+                   "mnist": False,
+                   "batch_size": 128,
+                   "epochs": 2,
+                   "seed": False,
+                   "urnn": True,
+                   "lstm": False,
+                   "log_output": "default",
+                   # "output":args.output,
+                   "cell_type": "urnn",
+                   "optimization": "adam"}
+
+# specify optimization scheme
+optimizers = {"rmsprop": tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+              "adam": tf.train.AdamOptimizer(learning_rate=glob_learning_rate),
+              "adadelta": tf.train.AdadeltaOptimizer(learning_rate=glob_learning_rate)}
+
 
 def baseline_cm(timesteps):
     return 10*np.log(8) / timesteps
@@ -48,25 +66,26 @@ def serialize_loss(loss, name):
 
 
 class Main:
-    def init_data(self, adding_problem, memory_problem, batch_size=50, epochs=10, seed=True):
+
+    def init_data(self, options=default_options):
         tf.logging.info('Generating data...')
 
-        if memory_problem:
+        if options["memory_problem"]:
             tf.logging.info('Generating memory problem data...')
             # init copying memory problem
-            self.cm_batch_size=batch_size
-            self.cm_epochs=epochs
+            self.cm_batch_size=options["batch_size"]
+            self.cm_epochs=options["epochs"]
 
             self.cm_timesteps=[120, 220, 320, 520]
             self.cm_samples=100000
             self.cm_data=[CopyingMemoryProblemDataset(self.cm_samples, timesteps, seed) for timesteps in self.cm_timesteps]
             self.dummy_cm_data=CopyingMemoryProblemDataset(100, 50) # samples, timestamps
 
-        if adding_problem:
+        if options["adding_problem"]:
             tf.logging.info('Generating adding problem data...')
             # init adding problem
-            self.ap_batch_size=batch_size
-            self.ap_epochs=epochs
+            self.ap_batch_size=options["batch_size"]
+            self.ap_epochs=options["epochs"]
 
             # self.ap_timesteps=[100, 200, 400, 750]
             # self.ap_samples=[30000, 50000, 40000, 100000]
@@ -75,9 +94,11 @@ class Main:
             self.ap_timesteps = [100]
             self.ap_samples = [50000]
 
-            self.ap_data=[AddingProblemDataset(sample, timesteps, seed) for
+            self.ap_data=[AddingProblemDataset(sample, timesteps, options["seed"]) for
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
             self.dummy_ap_data=AddingProblemDataset(100, 50) # samples, timestamps
+
+        # if options["mnist"]:
 
         tf.logging.info('Done.')
 
@@ -109,11 +130,12 @@ class Main:
 
         tf.logging.info('Training network {} done.'.format(net.name))
 
-    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default",
-                                    cell_type="urnn",
-                                    options={}):
+    def train_urnn_for_timestep_idx(self, idx,
+                                    options=default_options):
 
+        # specify cell information
         cells = {"urnn": URNNCell, "householder": REFLECTCell}
+        cell = cells[options["cell_type"]]
 
         tf.logging.info('Initializing and training URNNs for one timestep...')
 
@@ -122,7 +144,7 @@ class Main:
                             "learning_rate": glob_learning_rate,
                             "decay": glob_decay}
 
-        if memory_problem:
+        if options["memory_problem"]:
             # write info to dictionary for later use
             self.output_info["batch_size"] = self.cm_batch_size
             self.output_info["epochs"] = self.cm_epochs
@@ -133,25 +155,24 @@ class Main:
             # CM
             tf.reset_default_graph()
             self.cm_urnn=TFRNN(
-                name="cm_{}".format(cell_type),
-                log_output=log_output,
+                name="cm_{}".format(options["cell_type"]),
+                log_output=options["log_output"],
                 num_in=1,
                 num_hidden=128,
                 num_out=10,
                 num_target=1,
                 single_output=False,
-                rnn_cell=cells[cell_type],
+                rnn_cell=cell,
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
-                # optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
                 output_info=self.output_info)
             self.train_network(self.cm_urnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
-        if adding_problem:
+        if options["adding_problem"]:
             # write info to dictionary for later use
             self.output_info["batch_size"] = self.ap_batch_size
             self.output_info["epochs"] = self.ap_epochs
@@ -162,31 +183,30 @@ class Main:
             # AP
             tf.reset_default_graph()
             self.ap_urnn=TFRNN(
-                name="ap_{}".format(cell_type),
-                log_output=log_output,
+                name="ap_{}".format(options["cell_type"]),
+                log_output=options["log_output"],
                 num_in=2,
                 num_hidden=512,
                 num_out=1,
                 num_target=1,
                 single_output=True,
-                rnn_cell=cells[cell_type],
+                rnn_cell=cell,
                 activation_hidden=None, # modReLU
                 # activation_hidden= modReLU, # this doesn't change anything as the modReLU is included in the cell by default
                 activation_out=tf.identity,
                 # optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
-                optimizer=tf.train.AdadeltaOptimizer(learning_rate=glob_learning_rate),
+                optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference,
                 output_info=self.output_info)
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
-
         tf.logging.info('Init and training URNNs for one timestep done.')
 
-
-    def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem,
-                                        log_output="default", options={}):
+    def train_rnn_lstm_for_timestep_idx(self, idx, options=default_options):
         tf.logging.info('Initializing and training RNN&LSTM for one timestep...')
+
+
 
         if options["memory_problem"]:
             print("BNANANANA)")
@@ -204,7 +224,7 @@ class Main:
                 rnn_cell=tf.contrib.rnn.BasicRNNCell,
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
-                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
             self.train_network(self.cm_simple_rnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
@@ -220,7 +240,7 @@ class Main:
                 rnn_cell=tf.contrib.rnn.LSTMCell,
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
-                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
             self.train_network(self.cm_lstm, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
@@ -240,7 +260,7 @@ class Main:
                 rnn_cell=tf.contrib.rnn.BasicRNNCell,
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
-                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference)
             self.train_network(self.ap_simple_rnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
@@ -256,15 +276,14 @@ class Main:
                 rnn_cell=tf.contrib.rnn.LSTMCell,
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
-                optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
+                optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference)
             self.train_network(self.ap_lstm, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
         tf.logging.info('Init and training networks for one timestep done.')
 
-    def train_networks(self, adding_problem, memory_problem, urnn=True, lstm=False,
-                       log_output="default", timesteps_idx=1, cell_type="urnn", options={}, **kwargs):
+    def train_networks(self, timesteps_idx=1, options=default_options):
         tf.logging.info('Starting training...')
 
         print(options)
@@ -272,10 +291,10 @@ class Main:
         # timesteps_idx=4
         if options["urnn"]:
             for i in range(timesteps_idx):
-                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem, log_output, cell_type, options=options)
+                main.train_urnn_for_timestep_idx(i, options=options)
         if options["lstm"]:
             for i in range(timesteps_idx):
-                main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem, log_output, options=options)
+                main.train_rnn_lstm_for_timestep_idx(i, options=options)
 
         tf.logging.info('Done and done.')
 
@@ -309,8 +328,8 @@ if __name__ == "__main__":
     parser.add_argument("-a", '--adding-problem', dest="adding_problem", action='store_true')
     parser.add_argument("-m", '--memory-problem', dest="memory_problem", action='store_true')
 
-    parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=50)
-    parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=10)
+    parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=128)
+    parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=2)
 
     # specify cell type for URNN (options at present are 'householder' and 'urnn')
     parser.add_argument("-c", '--cell-type', dest="cell_type", type=str, default="urnn")
@@ -336,9 +355,9 @@ if __name__ == "__main__":
     tf.logging.set_verbosity(tf.logging.INFO)
 
     # print cell type info
-    tf.logging.info("URNN cell type set to {}".format(args.cell_type))
+    # tf.logging.info("URNN cell type set to {}".format(args.cell_type))
 
-    options = {"adding_problem":args.adding_problem,
+    input_options = {"adding_problem":args.adding_problem,
                "memory_problem":args.memory_problem,
                "batch_size":args.batch_size,
                "epochs":args.epochs,
@@ -350,14 +369,13 @@ if __name__ == "__main__":
                "cell_type":args.cell_type,
                "optimization":args.optimization}
 
-    print(options)
+    print(input_options)
 
 
     main = Main()
-    main.init_data(args.adding_problem, args.memory_problem, args.batch_size, args.epochs, args.seed)
+    main.init_data(options=input_options)
 
     if args.train:
-        main.train_networks(args.adding_problem, args.memory_problem, args.urnn,
-                            args.lstm, cell_type=args.cell_type, options=options)
+        main.train_networks(options=input_options)
 
     # main.test_networks(args.adding_problem, args.memory_problem)
