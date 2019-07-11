@@ -58,7 +58,7 @@ class TFRNN:
         activation_out,
         optimizer,
         loss_function,
-        output_info = {}):
+        output_info={}):
 
         # self
         self.name = name

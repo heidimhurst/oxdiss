@@ -72,8 +72,8 @@ class Main:
             # self.ap_samples=[30000, 50000, 40000, 100000]
 
             # small for testing
-            self.ap_timesteps = [50]
-            self.ap_samples = [5000]
+            self.ap_timesteps = [100]
+            self.ap_samples = [50000]
 
             self.ap_data=[AddingProblemDataset(sample, timesteps, seed) for
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
@@ -109,7 +109,9 @@ class Main:
 
         tf.logging.info('Training network {} done.'.format(net.name))
 
-    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default", cell_type="urnn"):
+    def train_urnn_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default",
+                                    cell_type="urnn",
+                                    options={}):
 
         cells = {"urnn": URNNCell, "householder": REFLECTCell}
 
@@ -182,10 +184,12 @@ class Main:
         tf.logging.info('Init and training URNNs for one timestep done.')
 
 
-    def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem, log_output="default"):
+    def train_rnn_lstm_for_timestep_idx(self, idx, adding_problem, memory_problem,
+                                        log_output="default", options={}):
         tf.logging.info('Initializing and training RNN&LSTM for one timestep...')
 
-        if memory_problem:
+        if options["memory_problem"]:
+            print("BNANANANA)")
             tf.logging.info("Training rnn/lstm for memory problem ...")
             # CM
 
@@ -221,7 +225,8 @@ class Main:
             self.train_network(self.cm_lstm, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
-        if adding_problem:
+        if options["adding_problem"]:
+            print("BNANANA")
             tf.logging.info("Training rnn/lstm for adding problem ...")
             # AP
             tf.reset_default_graph()
@@ -259,16 +264,18 @@ class Main:
         tf.logging.info('Init and training networks for one timestep done.')
 
     def train_networks(self, adding_problem, memory_problem, urnn=True, lstm=False,
-                       log_output="default", timesteps_idx=1, cell_type="urnn"):
+                       log_output="default", timesteps_idx=1, cell_type="urnn", options={}, **kwargs):
         tf.logging.info('Starting training...')
 
+        print(options)
+
         # timesteps_idx=4
-        if urnn:
+        if options["urnn"]:
             for i in range(timesteps_idx):
-                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem, log_output, cell_type)
-        if lstm:
+                main.train_urnn_for_timestep_idx(i, adding_problem, memory_problem, log_output, cell_type, options=options)
+        if options["lstm"]:
             for i in range(timesteps_idx):
-                main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem, log_output)
+                main.train_rnn_lstm_for_timestep_idx(i, adding_problem, memory_problem, log_output, options=options)
 
         tf.logging.info('Done and done.')
 
@@ -307,6 +314,8 @@ if __name__ == "__main__":
 
     # specify cell type for URNN (options at present are 'householder' and 'urnn')
     parser.add_argument("-c", '--cell-type', dest="cell_type", type=str, default="urnn")
+    # specify optimization scheme (options at present are 'adam' 'adagrad' 'rmsprop')
+    parser.add_argument("-o", '--optimization-method', dest="optimization", type=str, default='adam')
 
     # train urnn
     parser.add_argument("-u", '--urnn', dest="urnn", action="store_true")
@@ -316,7 +325,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", '--randomize-data', dest="seed", action="store_false")
 
     # storage location for runs
-    parser.add_argument("-o", "--output", dest="output", type=str)
+    # parser.add_argument("-o", "--output", dest="output", type=str)
 
     args = parser.parse_args()
 
@@ -329,12 +338,26 @@ if __name__ == "__main__":
     # print cell type info
     tf.logging.info("URNN cell type set to {}".format(args.cell_type))
 
+    options = {"adding_problem":args.adding_problem,
+               "memory_problem":args.memory_problem,
+               "batch_size":args.batch_size,
+               "epochs":args.epochs,
+               "seed":args.seed,
+               "urnn":args.urnn,
+               "lstm":args.lstm,
+               "log_output":"default",
+               # "output":args.output,
+               "cell_type":args.cell_type,
+               "optimization":args.optimization}
+
+    print(options)
+
 
     main = Main()
     main.init_data(args.adding_problem, args.memory_problem, args.batch_size, args.epochs, args.seed)
 
     if args.train:
         main.train_networks(args.adding_problem, args.memory_problem, args.urnn,
-                            args.lstm, args.output, cell_type=args.cell_type)
+                            args.lstm, cell_type=args.cell_type, options=options)
 
     # main.test_networks(args.adding_problem, args.memory_problem)
