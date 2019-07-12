@@ -4,6 +4,10 @@ from problems.copying_memory_problem import CopyingMemoryProblemDataset
 from models.tf_rnn import TFRNN
 from models.urnn_cell import URNNCell
 from models.householder_cell import REFLECTCell
+from models.rd_cell import RDCell
+from models.prd_cell import PRDCell
+from models.frpdi_cell import FRPDICell
+
 from models.component_matrices import modReLU
 
 from glob import glob
@@ -134,8 +138,14 @@ class Main:
                                     options=default_options):
 
         # specify cell information
-        cells = {"urnn": URNNCell, "householder": REFLECTCell}
-        cell = cells[options["cell_type"]]
+        cells = {"urnn": URNNCell, "householder": REFLECTCell,
+                 "rd": RDCell, "prd": PRDCell, "frpdi": FRPDICell}
+
+        if options["cell_type"] in cells.keys():
+            cell = cells[options["cell_type"]]
+        else:
+            print("GOING FOR STRING")
+            cell = options["cell_type"]
 
         tf.logging.info('Initializing and training URNNs for one timestep...')
 
@@ -206,10 +216,7 @@ class Main:
     def train_rnn_lstm_for_timestep_idx(self, idx, options=default_options):
         tf.logging.info('Initializing and training RNN&LSTM for one timestep...')
 
-
-
         if options["memory_problem"]:
-            print("BNANANANA)")
             tf.logging.info("Training rnn/lstm for memory problem ...")
             # CM
 
@@ -331,7 +338,7 @@ if __name__ == "__main__":
     parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=128)
     parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=2)
 
-    # specify cell type for URNN (options at present are 'householder' and 'urnn')
+    # specify cell type for URNN (options at present are 'householder', 'urnn', 'rd')
     parser.add_argument("-c", '--cell-type', dest="cell_type", type=str, default="urnn")
     # specify optimization scheme (options at present are 'adam' 'adagrad' 'rmsprop')
     parser.add_argument("-o", '--optimization-method', dest="optimization", type=str, default='adam')

@@ -2,6 +2,10 @@ import numpy as np
 import tensorflow as tf
 from .urnn_cell import URNNCell
 from .householder_cell import REFLECTCell
+from .rd_cell import RDCell
+from .prd_cell import PRDCell
+from .frpdi_cell import FRPDICell
+from .flexi_cell import FLEXICell
 
 from datetime import datetime
 from glob import glob
@@ -73,7 +77,9 @@ class TFRNN:
         self.writer = tf.summary.FileWriter(self.log_dir)
 
         # init cell
-        if rnn_cell == URNNCell or REFLECTCell:
+        if isinstance(rnn_cell, str):
+            self.cell = FLEXICell(num_units = num_hidden, num_in = num_in, components=rnn_cell)
+        elif rnn_cell == URNNCell or REFLECTCell or RDCell or PRDCell or FRPDICell:
             self.cell = rnn_cell(num_units = num_hidden, num_in = num_in)
         else:
             self.cell = rnn_cell(num_units = num_hidden, activation = activation_hidden)

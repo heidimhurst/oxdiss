@@ -14,6 +14,14 @@ class DiagonalMatrix():
         # [num_units] * [batch_sz, num_units] -> [batch_sz, num_units]
         return self.vec * z
 
+# TODO: Diagonal plus rank one update
+class DiagRankOneMatrix():
+    def __init__(self, name, num_units):
+        self.diag = tf.Variable(tf.random_uniform([num_units], minval=-1, maxval=1), name=name + "_d")
+
+    def mul(self, z):
+
+        return z
 
 # Reflection unitary matrix
 class ReflectionMatrix():
