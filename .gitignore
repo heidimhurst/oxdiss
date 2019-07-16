@@ -6,3 +6,4 @@ losses.txt
 *__pycache__/
 *tmp/
 *MNIST_data/
+*.ipynb_checkpoints*

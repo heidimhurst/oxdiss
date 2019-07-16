@@ -296,6 +296,7 @@ class TFRNN:
 
             test_writer.add_summary(summary)
             print("Test set loss:", test_loss)
+            self.output_info["test_loss"] = test_loss
 
     def evaluate(self, sess, X, Y, merge=None, training=False):
 
