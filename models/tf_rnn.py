@@ -78,7 +78,7 @@ class TFRNN:
 
         # init cell
         if isinstance(rnn_cell, str):
-            self.cell = FLEXICell(num_units = num_hidden, num_in = num_in, components=rnn_cell)
+            self.cell = FLEXICell(num_units=num_hidden, num_in=num_in, components=rnn_cell)
         elif rnn_cell == URNNCell or REFLECTCell or RDCell or PRDCell or FRPDICell:
             self.cell = rnn_cell(num_units = num_hidden, num_in = num_in)
         else:
