@@ -7,3 +7,4 @@ losses.txt
 *tmp/
 *MNIST_data/
 *.ipynb_checkpoints*
+*figures/

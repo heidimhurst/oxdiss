@@ -85,7 +85,7 @@ class TFRNN:
             self.cell = rnn_cell(num_units = num_hidden, activation = activation_hidden)
 
         # extract output size
-        self.output_size = self.cell.output_size
+        self.output_size = self.cell.output_size # TWICE number of outputs specified
         if type(self.output_size) == dict:
             self.output_size = self.output_size['num_units']
       
