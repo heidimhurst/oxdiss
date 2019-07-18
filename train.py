@@ -131,6 +131,8 @@ class Main:
             # todo: move testing to somewhere else in the code
             tf.logging.info("TESTING just for shits to see if it works")
             net.test(dataset)
+            # TODO: write this result out to the info.txt file
+            
 
         tf.logging.info('Training network {} done.'.format(net.name))
 
