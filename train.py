@@ -96,7 +96,7 @@ class Main:
 
             # small for testing
             self.ap_timesteps = [100]
-            self.ap_samples = [50000]
+            self.ap_samples = [100000]
 
             self.ap_data=[AddingProblemDataset(sample, timesteps, options["seed"]) for
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
