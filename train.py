@@ -1,6 +1,7 @@
 import tensorflow as tf
 from problems.adding_problem import AddingProblemDataset
 from problems.copying_memory_problem import CopyingMemoryProblemDataset
+from problems.mnist import MnistProblemDataset
 from models.tf_rnn import TFRNN
 from models.urnn_cell import URNNCell
 from models.householder_cell import REFLECTCell
@@ -38,7 +39,7 @@ glob_decay = 0.9
 
 default_options = {"adding_problem": True,
                    "memory_problem": True,
-                   "mnist": False,
+                   "mnist_problem": False,
                    "batch_size": 128,
                    "epochs": 2,
                    "seed": False,
@@ -102,7 +103,12 @@ class Main:
                           timesteps, sample in zip(self.ap_timesteps, self.ap_samples)]
             self.dummy_ap_data=AddingProblemDataset(100, 50) # samples, timestamps
 
-        # if options["mnist"]:
+        if options["mnist_problem"]:
+            tf.logging.info('Reading in MNIST problem data...')
+
+            self.mnist_batch_size = options["batch_size"]
+            self.mnist_epochs = options["epochs"]
+            self.mnist_data = MnistProblemDataset(-1, -1)
 
         tf.logging.info('Done.')
 
@@ -212,6 +218,24 @@ class Main:
                 output_info=self.output_info)
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
+
+        if options["mnist_problem"]:
+            tf.reset_default_graph()
+            self.mnist_urnn = TFRNN(
+                name="mnist_{}".format(options["cell_type"]),
+                log_output=options["log_output"],
+                num_in=1,
+                num_hidden=512,
+                num_out=10,
+                num_target=1,
+                single_output=True,
+                rnn_cell=cell,
+                activation_hidden=None,  # modReLU
+                activation_out=tf.identity,
+                optimizer=optimizers[options["optimization"]],
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+            self.train_network(self.mnist_urnn, self.mnist_data,
+                               self.mnist_batch_size, self.mnist_epochs)
 
         tf.logging.info('Init and training URNNs for one timestep done.')
 
@@ -336,6 +360,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-a", '--adding-problem', dest="adding_problem", action='store_true')
     parser.add_argument("-m", '--memory-problem', dest="memory_problem", action='store_true')
+    parser.add_argument("-i", '--mnist-problem', dest="mnist_problem", action='store_true')
 
     parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=128)
     parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=2)
@@ -368,6 +393,7 @@ if __name__ == "__main__":
 
     input_options = {"adding_problem":args.adding_problem,
                "memory_problem":args.memory_problem,
+               "mnist_problem":args.mnist_problem,
                "batch_size":args.batch_size,
                "epochs":args.epochs,
                "seed":args.seed,

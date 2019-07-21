@@ -200,10 +200,18 @@ class TFRNN:
             # initialize loss
             # batch_loss = tf.Variable(0., name="batch_loss")
             tf.summary.scalar("total_loss", self.total_loss)
-            # validation_loss = 0
-            # tf.summary.scalar("validation_loss", validation_loss)
+            # summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
 
-            counter = 0;
+
+            # TODO: write validation loss os single tensor : HOW :(
+            # how to write validation loss? need to initialize tensor correctly, at present just keeps
+            # getting written as nans, or however i set this initial value - does it need to be a function? :(
+
+            # self.validation_loss = tf.placeholder(tf.float32, name="validation_loss_" + self.name)
+            self.validation_loss = np.nan
+            tf.summary.scalar("validation_loss", self.validation_loss)
+
+            counter = 0
             train_writer = tf.summary.FileWriter('{}/train'.format(self.log_output), sess.graph)
             # train_writer = tf.contrib.summary('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
 
@@ -258,9 +266,9 @@ class TFRNN:
                                                                          total_examples, batch_loss))
 
                 # validate after each epoch
-                summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
+                summary, self.validation_loss = self.evaluate(sess, X_val, Y_val, merge)
 
-                tf.summary.scalar("validation_loss", validation_loss)
+                # tf.summary.scalar("validation_loss", validation_loss)
 
                 train_writer.add_summary(summary, counter)
                 self.writer.add_summary(summary, counter)
