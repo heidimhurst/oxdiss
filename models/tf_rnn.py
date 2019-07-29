@@ -15,8 +15,8 @@ import json
 import sys
 
 
-def serialize_to_file(loss, outfolder=""):
-    file=open(os.path.join(outfolder,'losses.txt'), 'w')
+def serialize_to_file(loss, outfolder="", name="losses.txt"):
+    file=open(os.path.join(outfolder, name), 'w')
     for l in loss:
         file.write("{0}\n".format(l))
     file.close()
@@ -70,6 +70,7 @@ class TFRNN:
         self.problem = self.name.split("_")[0]
         self.net_type = self.name.split("_")[1]
         self.loss_list = []
+        self.validation_list = []
         self.init_state_C = np.sqrt(3 / (2 * num_hidden))
         # self.log_dir = './logs/{}_{}/logs'.format(self.log_output, self.name)
         top_dir = "./logs/{}/{}/".format(self.problem, self.net_type)
@@ -77,6 +78,8 @@ class TFRNN:
         self.log_output = self.log_dir[:-5]
         self.writer = tf.summary.FileWriter(self.log_dir)
         self.checkpoints = checkpoints
+
+        self.validation_frequency = 20
 
         # init cell
         if isinstance(rnn_cell, str):
@@ -191,7 +194,7 @@ class TFRNN:
                                  "directory": self.log_dir, "optimizer": optimizer.get_name(),
                                  "num_in": num_in, "num_out": num_out, "num_hidden": num_hidden,
                                  "num_target": num_target, "cell_type": self.cell._base_name,
-                                 "trainable_params": int(t_params)})
+                                 "trainable_params": int(t_params), "validation_frequency": self.validation_frequency})
 
         # save info about trial run for later use/analysis/recordkeeping
         self.save_output_info()
@@ -200,6 +203,9 @@ class TFRNN:
 
         # create saver object
         saver = tf.train.Saver()
+
+        # VALTEST
+        write_op = tf.summary.merge_all()
 
         # session
         with tf.Session() as sess:
@@ -215,10 +221,19 @@ class TFRNN:
             # getting written as nans, or however i set this initial value - does it need to be a function? :(
 
             # self.validation_loss = tf.placeholder(tf.float32, name="validation_loss_" + self.name)
-            self.validation_loss = np.nan
-            tf.summary.scalar("validation_loss", self.validation_loss)
+            # self.validation_loss = tf.Variable(np.nan)
+
+            # VALTEST
+            validation_loss = tf.Variable(np.nan)
+            tf.summary.scalar("validation_loss", validation_loss)
+
+            # BATCHTEST
+            # batch_loss = tf.Variable(np.nan)
+            # tf.summary.scalar("batch_loss", batch_loss)
 
             train_writer = tf.summary.FileWriter('{}/train'.format(self.log_output), sess.graph)
+            eval_writer = tf.summary.FileWriter('{}/eval'.format(self.log_output), sess.graph)
+
             # train_writer = tf.contrib.summary('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
 
             # initialize global vars
@@ -230,6 +245,7 @@ class TFRNN:
 
             # init loss list
             self.loss_list = []
+            self.validation_list = []
             tf.logging.info("Starting training for {}".format(self.name))
             tf.logging.info("NumEpochs: {0:3d} |  BatchSize: {1:3d} |  NumBatches: {2:5d} \n".format(epochs,
                                                                                               batch_size,
@@ -258,34 +274,54 @@ class TFRNN:
 
                     # evaluate
                     summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
-                    # todo: make visualizable in tensorboard in real time (ideally)
                     # tf.summary.scalar("batch_loss", batch_loss)
                     print("BATCH LOSS {}".format(batch_loss))
 
+                    # BATCHTEST
+                    # summary = sess.run(write_op, {batch_loss: batch_loss})  # NOT SURE IF THIS WORKS
                     train_writer.add_summary(summary, counter)
+                    train_writer.flush()  # NOT SURE IF THIS WORKS
+
+
+
                     self.writer.add_summary(summary, counter)
 
                     # save the loss for later
                     self.loss_list.append(batch_loss)
 
                     # plot
-                    if batch_idx%10 == 0:
+                    if batch_idx % 10 == 0:
                         total_examples = batch_size * num_batches * epoch_idx + batch_size * batch_idx + batch_size
 
                         # print stats
                         serialize_to_file(self.loss_list, outfolder=self.log_dir)
-                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f}".format(epoch_idx, batch_idx,
-                                                                         total_examples, batch_loss))
 
-                # validate after each epoch
-                summary, self.validation_loss = self.evaluate(sess, X_val, Y_val, merge)
+                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} ".format(
+                                        epoch_idx, batch_idx, total_examples, batch_loss))
+
+                    # validation loss
+                    if batch_idx % self.validation_frequency == 0:
+                        # TODO: how frequently should we validate?
+                        # validate after every 10 batches?
+                        summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
+                        self.validation_list.append(validation_loss)
+                        serialize_to_file(self.validation_list, outfolder=self.log_dir, name="validation_losses.txt")
+
+                        # VALTEST
+                        # summary = sess.run(write_op, validation_loss)  # NOT SURE IF THIS WORKS
+                        eval_writer.add_summary(summary, counter)
+                        eval_writer.flush()  # NOT SURE IF THIS WORKS
+
+                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
+                                        epoch_idx, batch_idx,
+                                        total_examples, batch_loss, validation_loss))
 
                 # tf.summary.scalar("validation_loss", validation_loss)
 
                 train_writer.add_summary(summary, counter)
                 self.writer.add_summary(summary, counter)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
-                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, self.validation_loss))
+                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss))
                 # todo: write validation loss to tensorboard feed
 
         self.save_training_time()
@@ -338,9 +374,12 @@ class TFRNN:
                 summary, loss, _ = sess.run([merge, self.total_loss, self.train_step], feed_dict)
                 return summary, loss
         else:
+            # TODO: I'm not entirely sure this is validating correctly -
+            # seems like the values are entirely too close, and I'm afraid this is just calling the loss function
+            # on the evaluation stuff and thus actually incrementing the model itself? not sure :(
+            # NOTE: should be ok because i'm not calling self.train_step :) 
             summary, loss = sess.run([merge, self.total_loss], feed_dict)
-            print(summary)
-            print(loss)
+            # tf.logging.info("Evaluating error... loss is {}".format(loss))
             return summary, loss
 
         return loss
