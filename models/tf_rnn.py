@@ -224,8 +224,8 @@ class TFRNN:
             # self.validation_loss = tf.Variable(np.nan)
 
             # VALTEST
-            validation_loss = tf.Variable(np.nan)
-            tf.summary.scalar("validation_loss", validation_loss)
+            # validation_loss = tf.Variable(np.nan)
+            # tf.summary.scalar("validation_loss", validation_loss)
 
             # BATCHTEST
             # batch_loss = tf.Variable(np.nan)
@@ -377,7 +377,7 @@ class TFRNN:
             # TODO: I'm not entirely sure this is validating correctly -
             # seems like the values are entirely too close, and I'm afraid this is just calling the loss function
             # on the evaluation stuff and thus actually incrementing the model itself? not sure :(
-            # NOTE: should be ok because i'm not calling self.train_step :) 
+            # NOTE: should be ok because i'm not calling self.train_step :)
             summary, loss = sess.run([merge, self.total_loss], feed_dict)
             # tf.logging.info("Evaluating error... loss is {}".format(loss))
             return summary, loss

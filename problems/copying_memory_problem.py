@@ -7,7 +7,7 @@ import tensorflow.logging as log
 # num_target = 1
 
 class CopyingMemoryProblemDataset(Dataset):
-    def generate(self, num_samples, seed=True):
+    def generate(self, num_samples, seed=False):
 
         assert(self.sample_len > 20) # must be
 

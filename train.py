@@ -385,7 +385,7 @@ if __name__ == "__main__":
     # train lstm & rnn
     parser.add_argument("-l", "--lstm", dest="lstm", action="store_true")
     # generate random data (i.e. not from seed)
-    parser.add_argument("-r", '--randomize-data', dest="seed", action="store_false")
+    parser.add_argument("-r", '--randomize-data', dest="seed", action="store_true")
 
     # storage location for runs
     # parser.add_argument("-o", "--output", dest="output", type=str)
