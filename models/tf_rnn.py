@@ -62,7 +62,8 @@ class TFRNN:
         activation_out,
         optimizer,
         loss_function,
-        output_info={}):
+        output_info={},
+        checkpoints=0):
 
         # self
         self.name = name
@@ -75,6 +76,7 @@ class TFRNN:
         self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, increment_trial(top_dir))
         self.log_output = self.log_dir[:-5]
         self.writer = tf.summary.FileWriter(self.log_dir)
+        self.checkpoints = checkpoints
 
         # init cell
         if isinstance(rnn_cell, str):
@@ -83,6 +85,8 @@ class TFRNN:
             self.cell = rnn_cell(num_units = num_hidden, num_in = num_in)
         else:
             self.cell = rnn_cell(num_units = num_hidden, activation = activation_hidden)
+
+        # if
 
         # extract output size
         self.output_size = self.cell.output_size # TWICE number of outputs specified
@@ -194,6 +198,9 @@ class TFRNN:
 
     def train(self, dataset, batch_size, epochs):
 
+        # create saver object
+        saver = tf.train.Saver()
+
         # session
         with tf.Session() as sess:
             # print(self.w_ho.eval())
@@ -211,7 +218,6 @@ class TFRNN:
             self.validation_loss = np.nan
             tf.summary.scalar("validation_loss", self.validation_loss)
 
-            counter = 0
             train_writer = tf.summary.FileWriter('{}/train'.format(self.log_output), sess.graph)
             # train_writer = tf.contrib.summary('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
 
@@ -228,21 +234,27 @@ class TFRNN:
             tf.logging.info("NumEpochs: {0:3d} |  BatchSize: {1:3d} |  NumBatches: {2:5d} \n".format(epochs,
                                                                                               batch_size,
                                                                                               num_batches))
-
+            counter = 0
             # train for several epochs
             for epoch_idx in range(epochs):
                 tf.logging.info("Epoch Starting:{} \n ".format(epoch_idx))
                 # train on several minibatches
                 for batch_idx in range(num_batches):
-                    counter += 1 # for use with summary writer
+
+                    counter += 1  # for use with summary writer
                     merge = tf.summary.merge_all()
+
+                    # save every n steps
+                    if self.checkpoints > 0:
+                        if counter % self.checkpoints == 0:
+                            save_path = saver.save(sess, os.path.join(self.log_dir, "model_{}.ckpt".format(self.name)),
+                                                   global_step=counter)
+                            print("Model checkpoint saved in path: %s" % save_path)
 
                     # get one batch of data
                     # X_batch: [batch_size x time x num_in]
                     # Y_batch: [batch_size x time x num_target] or [batch_size x num_target] (single_output?)
                     X_batch, Y_batch = dataset.get_batch(batch_idx, batch_size)
-
-
 
                     # evaluate
                     summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
@@ -273,7 +285,7 @@ class TFRNN:
                 train_writer.add_summary(summary, counter)
                 self.writer.add_summary(summary, counter)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
-                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss))
+                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, self.validation_loss))
                 # todo: write validation loss to tensorboard feed
 
         self.save_training_time()

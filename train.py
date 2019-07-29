@@ -48,7 +48,8 @@ default_options = {"adding_problem": True,
                    "log_output": "default",
                    # "output":args.output,
                    "cell_type": "urnn",
-                   "optimization": "adam"}
+                   "optimization": "adam",
+                   "checkpoint": 0}
 
 # specify optimization scheme
 optimizers = {"rmsprop": tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
@@ -132,7 +133,7 @@ class Main:
             # todo: get accuracy, not just loss
 
             save_path = saver.save(sess, os.path.join(net.log_dir,"model_{}.ckpt".format(net.name)))
-            print("Model saved in path: %s" % save_path)
+            print("Final model checkpoint saved in path: %s" % save_path)
 
             # todo: move testing to somewhere else in the code
             tf.logging.info("TESTING just for shits to see if it works")
@@ -186,7 +187,8 @@ class Main:
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
-                output_info=self.output_info)
+                output_info=self.output_info,
+                checkpoints=options["checkpoints"])
             self.train_network(self.cm_urnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
@@ -215,7 +217,8 @@ class Main:
                 # optimizer=tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference,
-                output_info=self.output_info)
+                output_info=self.output_info,
+                checkpoints=options["checkpoints"])
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
@@ -258,7 +261,8 @@ class Main:
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
-                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                checkpoints=options["checkpoints"])
             self.train_network(self.cm_simple_rnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
@@ -274,7 +278,8 @@ class Main:
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
-                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                checkpoints=options["checkpoints"])
             self.train_network(self.cm_lstm, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
@@ -294,7 +299,8 @@ class Main:
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
-                loss_function=tf.squared_difference)
+                loss_function=tf.squared_difference,
+                checkpoints=options["checkpoints"])
             self.train_network(self.ap_simple_rnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
@@ -310,7 +316,8 @@ class Main:
                 activation_hidden=tf.tanh,
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
-                loss_function=tf.squared_difference)
+                loss_function=tf.squared_difference,
+                checkpoints=options["checkpoints"])
             self.train_network(self.ap_lstm, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
@@ -365,6 +372,9 @@ if __name__ == "__main__":
     parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=128)
     parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=2)
 
+    # save frequency checkpoints (0 will save only at the end, otherwise will save every n steps)
+    parser.add_argument("-s", '--checkpoints', dest="checkpoints", type=int, default=0)
+
     # specify cell type for URNN (options at present are 'householder', 'urnn', 'rd')
     parser.add_argument("-c", '--cell-type', dest="cell_type", type=str, default="urnn")
     # specify optimization scheme (options at present are 'adam' 'adagrad' 'rmsprop')
@@ -392,20 +402,22 @@ if __name__ == "__main__":
     # tf.logging.info("URNN cell type set to {}".format(args.cell_type))
 
     input_options = {"adding_problem":args.adding_problem,
-               "memory_problem":args.memory_problem,
-               "mnist_problem":args.mnist_problem,
-               "batch_size":args.batch_size,
-               "epochs":args.epochs,
-               "seed":args.seed,
-               "urnn":args.urnn,
-               "lstm":args.lstm,
-               "log_output":"default",
-               # "output":args.output,
-               "cell_type":args.cell_type,
-               "optimization":args.optimization}
+                        "memory_problem":args.memory_problem,
+                        "mnist_problem":args.mnist_problem,
+                        "batch_size":args.batch_size,
+                        "epochs":args.epochs,
+                        "seed":args.seed,
+                        "urnn":args.urnn,
+                        "lstm":args.lstm,
+                        "log_output":"default",
+                        # "output":args.output,
+                        "cell_type":args.cell_type,
+                        "optimization":args.optimization,
+                        "checkpoints":args.checkpoints}
+
+    input_options = dict(default_options, **input_options)
 
     print(input_options)
-
 
     main = Main()
     main.init_data(options=input_options)
