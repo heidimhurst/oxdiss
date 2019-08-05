@@ -9,4 +9,6 @@ losses.txt
 *.ipynb_checkpoints*
 *figures/
 
+oxdisstf/
 oxdisstf2/
+
