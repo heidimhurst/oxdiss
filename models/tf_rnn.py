@@ -80,7 +80,7 @@ class TFRNN:
 
         # if resuming:
         if resume != "":
-            # evaluate past 
+            # evaluate past
             self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, resume)
             tf.logging.info("Attempting to resume from previous checkpoint in {}".format(self.log_dir))
             assert os.path.isdir(self.log_dir), "Log directory must exist"
@@ -264,7 +264,13 @@ class TFRNN:
                 resume_path=self.log_dir
                 tf.logging.info("Attempting to restore from {}".format(resume_path))
                 saver.restore(sess, tf.train.latest_checkpoint(resume_path))
-                tf.logging.info("Training resumed from latest checkpoint in {}.".format(resume_path))
+                # how to reset counter to resume from previous location?
+                counter = self.get_step_from_checkpoint() + 1
+                tf.logging.info("Resuming training for {} at step {}".format(self.name, counter))
+            else:
+                counter = 0
+                tf.logging.info("Starting training for {}".format(self.name))
+
 
             # print(self.w_ho.eval())
             # initialize loss
@@ -303,11 +309,9 @@ class TFRNN:
             # init loss list
             self.loss_list = []
             self.validation_list = []
-            tf.logging.info("Starting training for {}".format(self.name))
             tf.logging.info("NumEpochs: {0:3d} |  BatchSize: {1:3d} |  NumBatches: {2:5d} \n".format(epochs,
                                                                                               batch_size,
                                                                                               num_batches))
-            counter = 0
             # train for several epochs
             for epoch_idx in range(epochs):
 
@@ -359,10 +363,10 @@ class TFRNN:
                         serialize_to_file(self.loss_list, outfolder=self.log_dir)
 
                         avg_batch_duration = datetime.now() - batch_start
-                        avg_batch_duration = (avg_batch_duration.total_seconds())/10
+                        avg_batch_duration = (avg_batch_duration.total_seconds())/10.0
 
-                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | Average Batch Time: {0:8.4f}".format(
-                                        epoch_idx, batch_idx, total_examples, batch_loss, avg_batch_duration))
+                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | Average Batch Time: {4:8.4f} | Step: {5}".format(
+                                        epoch_idx, batch_idx, total_examples, batch_loss, avg_batch_duration, counter))
 
                         batch_start = datetime.now()
 
@@ -379,9 +383,9 @@ class TFRNN:
                         eval_writer.add_summary(summary, counter)
                         eval_writer.flush()  # NOT SURE IF THIS WORKS
 
-                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
+                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f} | Step: {5}".format(
                                         epoch_idx, batch_idx,
-                                        total_examples, batch_loss, validation_loss))
+                                        total_examples, batch_loss, validation_loss, counter))
 
                 # tf.summary.scalar("validation_loss", validation_loss)
 
@@ -470,3 +474,18 @@ class TFRNN:
             self.output_info["end_time"] = datetime.now().strftime("%X")
             self.output_info["training_time"] = duration.total_seconds()
             json.dump(self.output_info, json_file)
+
+    # get step number for checkpoint, to use to reiterate
+    def get_step_from_checkpoint(self):
+
+        # get checkpoint data
+        checkpoints = glob(self.checkpoint_name + "*")
+
+        # cut to just numbers
+        steps = [check[check.find("-")+1:] for check in checkpoints]
+        steps = [check[:check.find(".")] for check in steps]
+
+        # get largest integer
+        step = max([int(step) for step in steps if step.isdigit()])
+
+        return step
