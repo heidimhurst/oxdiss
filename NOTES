@@ -1,0 +1,35 @@
+NOTES
+
+=== SSH Protocol ===
+
+To use desktop machine:
+ssh hursth@gate.maths.ox.ac.uk
+
+To port out tensorboard:
+ssh -L 6006:localhost:6006 hursth@gate.maths.ox.ac.uk
+
+To use department clusters (GPU?):
+ssh hursth@<clustername>.maths.ox.ac.uk (doesn't always work, maybe need to be on maths internet?)
+OR
+ssh hursth@gate.maths.ox.ac.uk THEN
+ssh <clustername>
+
+To use desktop computer
+ssh -L 6005:localhost:6005 hursth@professor-xavier.maths.ox.ac.uk
+
+
+To use Google Colaboratory:
+https://research.google.com/colaboratory/local-runtimes.html
+
+
+=== Training Command ===
+python train.py -tr -m -u -b=128 -e=5 -c=u -s=100
+
+
+=== Outstanding Issues ===
+Average batch time doesn't seem to work properly on Colaboratory
+Tensorboard view in notebooks: https://www.tensorflow.org/tensorboard/r2/tensorboard_in_notebooks
+
+== Trying to get CPU on remote desktop to work ==
+error: The TensorFlow library was compiled to use SSE4.1 instructions, but these aren't available on your machine.
+cat /proc/cpuinfo (command to get more info about cpu)
