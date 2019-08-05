@@ -8,3 +8,5 @@ losses.txt
 *MNIST_data/
 *.ipynb_checkpoints*
 *figures/
+oxdisstf/
+oxdisstf2/
