@@ -49,7 +49,7 @@ default_options = {"adding_problem": True,
                    # "output":args.output,
                    "cell_type": "urnn",
                    "optimization": "adam",
-                   "checkpoint": 0}
+                   "checkpoints": 0}
 
 # specify optimization scheme
 optimizers = {"rmsprop": tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),

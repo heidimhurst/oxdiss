@@ -253,7 +253,14 @@ class TFRNN:
             counter = 0
             # train for several epochs
             for epoch_idx in range(epochs):
+
+                epoch_start = datetime.now()
+
                 tf.logging.info("Epoch Starting:{} \n ".format(epoch_idx))
+
+                # time for batch start
+                batch_start = datetime.now()
+
                 # train on several minibatches
                 for batch_idx in range(num_batches):
 
@@ -282,8 +289,6 @@ class TFRNN:
                     train_writer.add_summary(summary, counter)
                     train_writer.flush()  # NOT SURE IF THIS WORKS
 
-
-
                     self.writer.add_summary(summary, counter)
 
                     # save the loss for later
@@ -296,8 +301,13 @@ class TFRNN:
                         # print stats
                         serialize_to_file(self.loss_list, outfolder=self.log_dir)
 
-                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} ".format(
-                                        epoch_idx, batch_idx, total_examples, batch_loss))
+                        avg_batch_duration = datetime.now() - batch_start
+                        avg_batch_duration = (avg_batch_duration.total_seconds())/10
+
+                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | Average Batch Time: {0:8.4f}".format(
+                                        epoch_idx, batch_idx, total_examples, batch_loss, avg_batch_duration))
+
+                        batch_start = datetime.now()
 
                     # validation loss
                     if batch_idx % self.validation_frequency == 0:
@@ -321,7 +331,8 @@ class TFRNN:
                 train_writer.add_summary(summary, counter)
                 self.writer.add_summary(summary, counter)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
-                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss))
+                epoch_duration = datetime.now() - epoch_start
+                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} | Time: {3:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss, epoch_duration.total_seconds()))
                 # todo: write validation loss to tensorboard feed
 
         self.save_training_time()
