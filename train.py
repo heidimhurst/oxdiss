@@ -221,7 +221,8 @@ class Main:
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference,
                 output_info=self.output_info,
-                checkpoints=options["checkpoints"])
+                checkpoints=options["checkpoints"],
+                resume=options["resume"])
             self.train_network(self.ap_urnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
@@ -239,7 +240,8 @@ class Main:
                 activation_hidden=None,  # modReLU
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
-                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits)
+                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                resume=options["resume"])
             self.train_network(self.mnist_urnn, self.mnist_data,
                                self.mnist_batch_size, self.mnist_epochs)
 
@@ -265,7 +267,8 @@ class Main:
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
-                checkpoints=options["checkpoints"])
+                checkpoints=options["checkpoints"],
+                resume=options["resume"])
             self.train_network(self.cm_simple_rnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
@@ -282,7 +285,8 @@ class Main:
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
-                checkpoints=options["checkpoints"])
+                checkpoints=options["checkpoints"],
+                resume=options["resume"])
             self.train_network(self.cm_lstm, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
@@ -303,7 +307,8 @@ class Main:
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference,
-                checkpoints=options["checkpoints"])
+                checkpoints=options["checkpoints"],
+                resume=options["resume"])
             self.train_network(self.ap_simple_rnn, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
@@ -320,7 +325,8 @@ class Main:
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.squared_difference,
-                checkpoints=options["checkpoints"])
+                checkpoints=options["checkpoints"],
+                resume=options["resume"])
             self.train_network(self.ap_lstm, self.ap_data[idx],
                                self.ap_batch_size, self.ap_epochs)
 
