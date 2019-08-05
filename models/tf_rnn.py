@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+import kfac
+
 from .urnn_cell import URNNCell
 from .householder_cell import REFLECTCell
 from .rd_cell import RDCell
@@ -89,7 +91,6 @@ class TFRNN:
         else:
             self.cell = rnn_cell(num_units = num_hidden, activation = activation_hidden)
 
-        # if
 
         # extract output size
         self.output_size = self.cell.output_size # TWICE number of outputs specified
@@ -156,6 +157,7 @@ class TFRNN:
         tf.print(outputs_o, output_stream=tf.compat.v1.logging.warning)
         # tf.Print(outputs_o, [outputs_o])
         print("==endoutputs==")
+
             
         # calculate losses and set up optimizer
 
@@ -171,7 +173,26 @@ class TFRNN:
             self.total_loss = tf.reduce_mean(loss_function(logits=outputs_o, labels=prepared_labels))
         else:
             raise Exception('New loss function')
-        self.train_step = optimizer.minimize(self.total_loss, name='Optimizer')
+
+        # === KFAC Optimization (beta) ===
+        if optimizer != "kfac":
+            self.train_step = optimizer.minimize(self.total_loss, name='Optimizer')
+        elif optimizer == "kfac":
+            tf.logging.info("Initializing KFAC situation")
+            # register loss
+            layer_collection = kfac.LayerCollection()
+            layer_collection.register_softmax_cross_entropy_loss(logits=outputs_o)
+            # register layers
+            layer_collection.auto_register_layers(batch_size=128)
+            # construct training op
+            optimizer = kfac.PeriodicInvCovUpdateKfacOpt(learning_rate=0.0001,
+                                                         damping=0.001,
+                                                          momentum=0.9,
+                                                          cov_ema_decay=0.95,
+                                                          invert_every=10,
+                                                          cov_update_every=1,
+                                                         layer_collection=layer_collection)
+            self.train_step = optimizer.minimize(self.total_loss)
 
         # tensorboard
         self.writer.add_graph(tf.get_default_graph())

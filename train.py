@@ -54,7 +54,8 @@ default_options = {"adding_problem": True,
 # specify optimization scheme
 optimizers = {"rmsprop": tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
               "adam": tf.train.AdamOptimizer(learning_rate=glob_learning_rate),
-              "adadelta": tf.train.AdadeltaOptimizer(learning_rate=glob_learning_rate)}
+              "adadelta": tf.train.AdadeltaOptimizer(learning_rate=glob_learning_rate),
+              "kfac":"kfac"}
 
 
 def baseline_cm(timesteps):
