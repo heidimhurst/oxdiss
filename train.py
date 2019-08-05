@@ -49,7 +49,8 @@ default_options = {"adding_problem": True,
                    # "output":args.output,
                    "cell_type": "urnn",
                    "optimization": "adam",
-                   "checkpoints": 0}
+                   "checkpoints": 0,
+                   "resume":""}
 
 # specify optimization scheme
 optimizers = {"rmsprop": tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
@@ -189,7 +190,8 @@ class Main:
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
                 output_info=self.output_info,
-                checkpoints=options["checkpoints"])
+                checkpoints=options["checkpoints"],
+                resume=options["resume"])
             self.train_network(self.cm_urnn, self.cm_data[idx],
                                self.cm_batch_size, self.cm_epochs)
 
@@ -386,10 +388,13 @@ if __name__ == "__main__":
     # train lstm & rnn
     parser.add_argument("-l", "--lstm", dest="lstm", action="store_true")
     # generate random data (i.e. not from seed)
-    parser.add_argument("-r", '--randomize-data', dest="seed", action="store_true")
+    # parser.add_argument("-r", '--randomize-data', dest="seed", action="store_true")
 
     # storage location for runs
     # parser.add_argument("-o", "--output", dest="output", type=str)
+
+    # restart from checkpoint
+    parser.add_argument("-r", "--resume", dest="resume", type=str, default="")
 
     args = parser.parse_args()
 
@@ -407,14 +412,15 @@ if __name__ == "__main__":
                         "mnist_problem":args.mnist_problem,
                         "batch_size":args.batch_size,
                         "epochs":args.epochs,
-                        "seed":args.seed,
+                        # "seed":args.seed,
                         "urnn":args.urnn,
                         "lstm":args.lstm,
                         "log_output":"default",
                         # "output":args.output,
                         "cell_type":args.cell_type,
                         "optimization":args.optimization,
-                        "checkpoints":args.checkpoints}
+                        "checkpoints":args.checkpoints,
+                        "resume":args.resume}
 
     input_options = dict(default_options, **input_options)
 

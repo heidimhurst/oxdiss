@@ -65,7 +65,8 @@ class TFRNN:
         optimizer,
         loss_function,
         output_info={},
-        checkpoints=0):
+        checkpoints=0,
+        resume=""):
 
         # self
         self.name = name
@@ -76,10 +77,34 @@ class TFRNN:
         self.init_state_C = np.sqrt(3 / (2 * num_hidden))
         # self.log_dir = './logs/{}_{}/logs'.format(self.log_output, self.name)
         top_dir = "./logs/{}/{}/".format(self.problem, self.net_type)
-        self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, increment_trial(top_dir))
+
+        # if resuming:
+        if resume != "":
+            # evaluate past 
+            self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, resume)
+            tf.logging.info("Attempting to resume from previous checkpoint in {}".format(self.log_dir))
+            assert os.path.isdir(self.log_dir), "Log directory must exist"
+            self.resume = True
+
+        else:
+            self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, increment_trial(top_dir))
+
         self.log_output = self.log_dir[:-5]
         self.writer = tf.summary.FileWriter(self.log_dir)
+
+        # set up checkpoint saving/resume
         self.checkpoints = checkpoints
+        # ==== CHECKPOINT SAVING ====
+        self.checkpoint_name = os.path.join(self.log_dir, "model_{}.ckpt".format(self.name))
+        # create checkpoint saver & manager
+        # ckpt = tf.train.Checkpoint(step)
+        # manager = tf.train.CheckpointManager(ckpt, self.checkpoint_name, max_to_keep=20)
+        # ckpt.restore(manager.lagest_checkpoint)
+        # if manager.latest_checkpoint:
+        #     tf.logging.info("Restored from {}".format(manager.latest_checkpoint))
+        # else:
+        #     tf.logging.info("Initializing from scratch.")
+
 
         self.validation_frequency = 20
 
@@ -225,11 +250,22 @@ class TFRNN:
         # create saver object
         saver = tf.train.Saver()
 
+
         # VALTEST
         write_op = tf.summary.merge_all()
 
         # session
         with tf.Session() as sess:
+
+            # if restore=True, resume from previous (NB: this will continue training/validation on DIFFERENT DATA)
+            # where to restore from?
+            if self.resume != "":
+                # resume_path = os.path.join(self.checkpoint_name, "logs")
+                resume_path=self.log_dir
+                tf.logging.info("Attempting to restore from {}".format(resume_path))
+                saver.restore(sess, tf.train.latest_checkpoint(resume_path))
+                tf.logging.info("Training resumed from latest checkpoint in {}.".format(resume_path))
+
             # print(self.w_ho.eval())
             # initialize loss
             # batch_loss = tf.Variable(0., name="batch_loss")
