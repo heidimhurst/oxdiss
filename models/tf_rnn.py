@@ -109,7 +109,7 @@ class TFRNN:
         #     tf.logging.info("Initializing from scratch.")
 
 
-        self.validation_frequency = 20
+        self.validation_frequency = 100
 
         # init cell
         if isinstance(rnn_cell, str):
@@ -247,7 +247,8 @@ class TFRNN:
                                  "directory": self.log_dir, "optimizer": optimizer.get_name(),
                                  "num_in": num_in, "num_out": num_out, "num_hidden": num_hidden,
                                  "num_target": num_target, "cell_type": self.cell._base_name,
-                                 "trainable_params": int(t_params), "validation_frequency": self.validation_frequency})
+                                 "trainable_params": int(t_params), "validation_frequency": self.validation_frequency,
+                                 "gpu":tf.test.is_gpu_available()})
 
         # save info about trial run for later use/analysis/recordkeeping
         self.save_output_info()
@@ -433,11 +434,22 @@ class TFRNN:
             print("Test set loss:", test_loss)
             self.output_info["test_loss"] = test_loss
 
-    def evaluate(self, sess, X, Y, merge=None, training=False):
+    def evaluate(self, sess, X, Y, merge=None, training=False, max_batch_size=1024):
 
         # fill (X,Y) placeholders
-        feed_dict = {self.input_x: X, self.input_y: Y}
         batch_size = X.shape[0]
+
+        # todo: if batch size is too large, SUBSAMPLE and throw warning
+        if batch_size > max_batch_size:
+            tf.logging.warn("Evaluation batch size is too large.  Downsampling from {} to {}.".format(batch_size,
+                                                                                                      max_batch_size))
+            inds = np.random.randint(0, batch_size-1, max_batch_size)
+            X = X[inds]
+            Y = Y[inds]
+
+            batch_size = X.shape[0]
+
+        feed_dict = {self.input_x: X, self.input_y: Y}
 
         # fill initial state
         for init_state in self.init_states:
