@@ -46,6 +46,7 @@ default_options = {"adding_problem": True,
                    "seed": False,
                    "urnn": True,
                    "lstm": False,
+                   "rnn": False,
                    "log_output": "default",
                    # "output":args.output,
                    "cell_type": "urnn",
@@ -243,6 +244,7 @@ class Main:
                 activation_out=tf.identity,
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                output_info=self.output_info,
                 resume=options["resume"])
             self.train_network(self.mnist_urnn, self.mnist_data,
                                self.mnist_batch_size, self.mnist_epochs)
@@ -250,87 +252,116 @@ class Main:
         tf.logging.info('Init and training URNNs for one timestep done.')
 
     def train_rnn_lstm_for_timestep_idx(self, idx, options=default_options):
+
+        self.output_info = {"run_date":datetime.now().strftime("%x"),
+                            "start_time": datetime.now().strftime("%X"),
+                            "learning_rate": glob_learning_rate,
+                            "decay": glob_decay}
+
         tf.logging.info('Initializing and training RNN&LSTM for one timestep...')
 
         if options["memory_problem"]:
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.cm_batch_size
+            self.output_info["epochs"] = self.cm_epochs
+            self.output_info["timesteps"] = self.cm_timesteps[idx]
+            self.output_info["samples"] = self.cm_samples
+
             tf.logging.info("Training rnn/lstm for memory problem ...")
             # CM
 
-            tf.reset_default_graph()
-            self.cm_simple_rnn=TFRNN(
-                name="cm_simple_rnn",
-                num_in=1,
-                num_hidden=80,
-                num_out=10,
-                num_target=1,
-                single_output=False,
-                rnn_cell=tf.contrib.rnn.BasicRNNCell,
-                activation_hidden=tf.tanh,
-                activation_out=tf.identity,
-                optimizer=optimizers[options["optimization"]],
-                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
-                checkpoints=options["checkpoints"],
-                resume=options["resume"])
-            self.train_network(self.cm_simple_rnn, self.cm_data[idx],
-                               self.cm_batch_size, self.cm_epochs)
+            if options["rnn"]:
+                tf.reset_default_graph()
+                self.cm_simple_rnn=TFRNN(
+                    name="cm_simplernn",
+                    log_output=options["log_output"],
+                    num_in=1,
+                    num_hidden=80,
+                    num_out=10,
+                    num_target=1,
+                    single_output=False,
+                    rnn_cell=tf.contrib.rnn.BasicRNNCell,
+                    activation_hidden=tf.tanh,
+                    activation_out=tf.identity,
+                    optimizer=optimizers[options["optimization"]],
+                    loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                    output_info=self.output_info,
+                    checkpoints=options["checkpoints"],
+                    resume=options["resume"])
+                self.train_network(self.cm_simple_rnn, self.cm_data[idx],
+                                   self.cm_batch_size, self.cm_epochs)
 
-            tf.reset_default_graph()
-            self.cm_lstm=TFRNN(
-                name="cm_lstm",
-                num_in=1,
-                num_hidden=40,
-                num_out=10,
-                num_target=1,
-                single_output=False,
-                rnn_cell=tf.contrib.rnn.LSTMCell,
-                activation_hidden=tf.tanh,
-                activation_out=tf.identity,
-                optimizer=optimizers[options["optimization"]],
-                loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
-                checkpoints=options["checkpoints"],
-                resume=options["resume"])
-            self.train_network(self.cm_lstm, self.cm_data[idx],
-                               self.cm_batch_size, self.cm_epochs)
+            if options["lstm"]:
+                tf.reset_default_graph()
+                self.cm_lstm=TFRNN(
+                    name="cm_lstm",
+                    log_output=options["log_output"],
+                    num_in=1,
+                    num_hidden=40,
+                    num_out=10,
+                    num_target=1,
+                    single_output=False,
+                    rnn_cell=tf.contrib.rnn.LSTMCell,
+                    activation_hidden=tf.tanh,
+                    activation_out=tf.identity,
+                    optimizer=optimizers[options["optimization"]],
+                    loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                    output_info=self.output_info,
+                    checkpoints=options["checkpoints"],
+                    resume=options["resume"])
+                self.train_network(self.cm_lstm, self.cm_data[idx],
+                                   self.cm_batch_size, self.cm_epochs)
 
         if options["adding_problem"]:
-            print("BNANANA")
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.ap_batch_size
+            self.output_info["epochs"] = self.ap_epochs
+            self.output_info["timesteps"] = self.ap_timesteps[idx]
+            self.output_info["samples"] = self.ap_samples[0]
+
             tf.logging.info("Training rnn/lstm for adding problem ...")
             # AP
-            tf.reset_default_graph()
-            self.ap_simple_rnn=TFRNN(
-                name="ap_simple_rnn",
-                num_in=2,
-                num_hidden=128,
-                num_out=1,
-                num_target=1,
-                single_output=True,
-                rnn_cell=tf.contrib.rnn.BasicRNNCell,
-                activation_hidden=tf.tanh,
-                activation_out=tf.identity,
-                optimizer=optimizers[options["optimization"]],
-                loss_function=tf.squared_difference,
-                checkpoints=options["checkpoints"],
-                resume=options["resume"])
-            self.train_network(self.ap_simple_rnn, self.ap_data[idx],
-                               self.ap_batch_size, self.ap_epochs)
+            if options["rnn"]:
+                tf.reset_default_graph()
+                self.ap_simple_rnn=TFRNN(
+                    name="ap_simplernn",
+                    log_output=options["log_output"],
+                    num_in=2,
+                    num_hidden=128,
+                    num_out=1,
+                    num_target=1,
+                    single_output=True,
+                    rnn_cell=tf.contrib.rnn.BasicRNNCell,
+                    activation_hidden=tf.tanh,
+                    activation_out=tf.identity,
+                    optimizer=optimizers[options["optimization"]],
+                    loss_function=tf.squared_difference,
+                    output_info=self.output_info,
+                    checkpoints=options["checkpoints"],
+                    resume=options["resume"])
+                self.train_network(self.ap_simple_rnn, self.ap_data[idx],
+                                   self.ap_batch_size, self.ap_epochs)
 
-            tf.reset_default_graph()
-            self.ap_lstm=TFRNN(
-                name="ap_lstm",
-                num_in=2,
-                num_hidden=128,
-                num_out=1,
-                num_target=1,
-                single_output=True,
-                rnn_cell=tf.contrib.rnn.LSTMCell,
-                activation_hidden=tf.tanh,
-                activation_out=tf.identity,
-                optimizer=optimizers[options["optimization"]],
-                loss_function=tf.squared_difference,
-                checkpoints=options["checkpoints"],
-                resume=options["resume"])
-            self.train_network(self.ap_lstm, self.ap_data[idx],
-                               self.ap_batch_size, self.ap_epochs)
+            if options["lstm"]:
+                tf.reset_default_graph()
+                self.ap_lstm=TFRNN(
+                    name="ap_lstm",
+                    log_output=options["log_output"],
+                    num_in=2,
+                    num_hidden=128,
+                    num_out=1,
+                    num_target=1,
+                    single_output=True,
+                    rnn_cell=tf.contrib.rnn.LSTMCell,
+                    activation_hidden=tf.tanh,
+                    activation_out=tf.identity,
+                    optimizer=optimizers[options["optimization"]],
+                    loss_function=tf.squared_difference,
+                    output_info=self.output_info,
+                    checkpoints=options["checkpoints"],
+                    resume=options["resume"])
+                self.train_network(self.ap_lstm, self.ap_data[idx],
+                                   self.ap_batch_size, self.ap_epochs)
 
         tf.logging.info('Init and training networks for one timestep done.')
 
@@ -339,11 +370,12 @@ class Main:
 
         print(options)
 
+
         # timesteps_idx=4
         if options["urnn"]:
             for i in range(timesteps_idx):
                 main.train_urnn_for_timestep_idx(i, options=options)
-        if options["lstm"]:
+        if options["lstm"] or options["rnn"]:
             for i in range(timesteps_idx):
                 main.train_rnn_lstm_for_timestep_idx(i, options=options)
 
@@ -395,6 +427,7 @@ if __name__ == "__main__":
     parser.add_argument("-u", '--urnn', dest="urnn", action="store_true")
     # train lstm & rnn
     parser.add_argument("-l", "--lstm", dest="lstm", action="store_true")
+    parser.add_argument("-n", "--rnn", dest="rnn", action="store_true")
     # generate random data (i.e. not from seed)
     # parser.add_argument("-r", '--randomize-data', dest="seed", action="store_true")
 
@@ -423,6 +456,7 @@ if __name__ == "__main__":
                         # "seed":args.seed,
                         "urnn":args.urnn,
                         "lstm":args.lstm,
+                        "rnn":args.rnn,
                         "log_output":"default",
                         # "output":args.output,
                         "cell_type":args.cell_type,
