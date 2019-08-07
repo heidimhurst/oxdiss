@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 from problems.adding_problem import AddingProblemDataset
 from problems.copying_memory_problem import CopyingMemoryProblemDataset
 from problems.mnist import MnistProblemDataset
@@ -56,7 +57,8 @@ default_options = {"adding_problem": True,
 optimizers = {"rmsprop": tf.train.RMSPropOptimizer(learning_rate=glob_learning_rate, decay=glob_decay),
               "adam": tf.train.AdamOptimizer(learning_rate=glob_learning_rate),
               "adadelta": tf.train.AdadeltaOptimizer(learning_rate=glob_learning_rate),
-              "kfac":"kfac"}
+              "kfac":"kfac",
+              "adaqn":"adaqn"}
 
 
 def baseline_cm(timesteps):

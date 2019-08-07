@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
-import kfac
+# import kfac
+
+# from stochqn.tf import TensorflowStochQNOptimizer
 
 from .urnn_cell import URNNCell
 from .householder_cell import REFLECTCell
@@ -88,6 +90,7 @@ class TFRNN:
 
         else:
             self.log_dir = "./logs/{}/{}/{}/logs".format(self.problem, self.net_type, increment_trial(top_dir))
+            self.resume = False
 
         self.log_output = self.log_dir[:-5]
         self.writer = tf.summary.FileWriter(self.log_dir)
@@ -200,24 +203,28 @@ class TFRNN:
             raise Exception('New loss function')
 
         # === KFAC Optimization (beta) ===
-        if optimizer != "kfac":
+        if optimizer == "adaqn":
+            # optimizer = TensorflowStochQNOptimizer(self.total_loss, optimizer="adaQN")
+            # self.train_step = optimizer.minimize(self.total_loss)
+            tf.logging.warn("Not implemented for optimizer adaqn.")
+        elif optimizer != "kfac":
             self.train_step = optimizer.minimize(self.total_loss, name='Optimizer')
-        elif optimizer == "kfac":
-            tf.logging.info("Initializing KFAC situation")
-            # register loss
-            layer_collection = kfac.LayerCollection()
-            layer_collection.register_softmax_cross_entropy_loss(logits=outputs_o)
-            # register layers
-            layer_collection.auto_register_layers(batch_size=128)
-            # construct training op
-            optimizer = kfac.PeriodicInvCovUpdateKfacOpt(learning_rate=0.0001,
-                                                         damping=0.001,
-                                                          momentum=0.9,
-                                                          cov_ema_decay=0.95,
-                                                          invert_every=10,
-                                                          cov_update_every=1,
-                                                         layer_collection=layer_collection)
-            self.train_step = optimizer.minimize(self.total_loss)
+        # elif optimizer == "kfac":
+        #     tf.logging.info("Initializing KFAC situation")
+        #     # register loss
+        #     layer_collection = kfac.LayerCollection()
+        #     layer_collection.register_softmax_cross_entropy_loss(logits=outputs_o)
+        #     # register layers
+        #     layer_collection.auto_register_layers(batch_size=128)
+        #     # construct training op
+        #     optimizer = kfac.PeriodicInvCovUpdateKfacOpt(learning_rate=0.0001,
+        #                                                  damping=0.001,
+        #                                                   momentum=0.9,
+        #                                                   cov_ema_decay=0.95,
+        #                                                   invert_every=10,
+        #                                                   cov_update_every=1,
+        #                                                  layer_collection=layer_collection)
+        #     self.train_step = optimizer.minimize(self.total_loss)
 
         # tensorboard
         self.writer.add_graph(tf.get_default_graph())
@@ -231,7 +238,7 @@ class TFRNN:
         print(self.w_ho)
         # print(self.w_ho.eval())
 
-        print('Network __init__ over. Number of trainable params=', t_params)
+        tf.logging.info('Network __init__ over. Number of trainable params={}'.format(t_params))
 
         # output info for later use
         self.start_time = datetime.now()
@@ -259,9 +266,9 @@ class TFRNN:
 
             # if restore=True, resume from previous (NB: this will continue training/validation on DIFFERENT DATA)
             # where to restore from?
-            if self.resume != "":
+            if self.resume:
                 # resume_path = os.path.join(self.checkpoint_name, "logs")
-                resume_path=self.log_dir
+                resume_path = self.log_dir
                 tf.logging.info("Attempting to restore from {}".format(resume_path))
                 saver.restore(sess, tf.train.latest_checkpoint(resume_path))
                 # how to reset counter to resume from previous location?
@@ -365,7 +372,7 @@ class TFRNN:
                         avg_batch_duration = datetime.now() - batch_start
                         avg_batch_duration = (avg_batch_duration.total_seconds())/10.0
 
-                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | Average Batch Time: {4:8.4f} | Step: {5}".format(
+                        tf.logging.info("Step: {5} | Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | Average Batch Time: {4:8.4f}".format(
                                         epoch_idx, batch_idx, total_examples, batch_loss, avg_batch_duration, counter))
 
                         batch_start = datetime.now()
@@ -383,7 +390,7 @@ class TFRNN:
                         eval_writer.add_summary(summary, counter)
                         eval_writer.flush()  # NOT SURE IF THIS WORKS
 
-                        tf.logging.info("Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f} | Step: {5}".format(
+                        tf.logging.info("Step: {5} | Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
                                         epoch_idx, batch_idx,
                                         total_examples, batch_loss, validation_loss, counter))
 
