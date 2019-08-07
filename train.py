@@ -15,6 +15,8 @@ from models.component_matrices import modReLU
 from glob import glob
 from datetime import datetime
 
+import socket
+
 import argparse
 import numpy as np
 import os
@@ -79,6 +81,13 @@ def serialize_loss(loss, name):
 class Main:
 
     def init_data(self, options=default_options):
+
+        self.output_info = {"run_date":datetime.now().strftime("%x"),
+                            "start_time": datetime.now().strftime("%X"),
+                            "learning_rate": glob_learning_rate,
+                            "decay": glob_decay,
+                            "machine": socket.gethostname()}
+        
         tf.logging.info('Generating data...')
 
         if options["memory_problem"]:
@@ -163,10 +172,7 @@ class Main:
 
         tf.logging.info('Initializing and training URNNs for one timestep...')
 
-        self.output_info = {"run_date":datetime.now().strftime("%x"),
-                            "start_time": datetime.now().strftime("%X"),
-                            "learning_rate": glob_learning_rate,
-                            "decay": glob_decay}
+
 
         if options["memory_problem"]:
             # write info to dictionary for later use
