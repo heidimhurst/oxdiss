@@ -87,7 +87,7 @@ class Main:
                             "learning_rate": glob_learning_rate,
                             "decay": glob_decay,
                             "machine": socket.gethostname()}
-        
+
         tf.logging.info('Generating data...')
 
         if options["memory_problem"]:

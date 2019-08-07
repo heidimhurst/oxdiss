@@ -440,7 +440,7 @@ class TFRNN:
         batch_size = X.shape[0]
 
         # todo: if batch size is too large, SUBSAMPLE and throw warning
-        if batch_size > max_batch_size:
+        if batch_size > max_batch_size and self.problem != "mnist":
             tf.logging.warn("Evaluation batch size is too large.  Downsampling from {} to {}.".format(batch_size,
                                                                                                       max_batch_size))
             inds = np.random.randint(0, batch_size-1, max_batch_size)
