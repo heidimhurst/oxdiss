@@ -17,6 +17,10 @@ class FLEXICell(tf.contrib.rnn.RNNCell):
             self._num_units = num_units
             self._state_size = num_units*2
             self._output_size = num_units*2
+
+            if components == "u":  # if you want full matrix
+                tf.logging.info("Using FLEXICell to create a full unitary matrix (Arjovsky)")
+                components = "d1fr1pd2ir2d3"
             self._components = components
 
             tf.logging.info("Creating a cell with components {}".format(self._components))
