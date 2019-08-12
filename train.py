@@ -369,6 +369,50 @@ class Main:
                 self.train_network(self.ap_lstm, self.ap_data[idx],
                                    self.ap_batch_size, self.ap_epochs)
 
+        if options["mnist_problem"]:
+
+            if options["rnn"]:
+                tf.reset_default_graph()
+                self.mnist_lstm=TFRNN(
+                    name="mnist_simplernn",
+                    log_output=options["log_output"],
+                    num_in=1,
+                    num_hidden=128,
+                    num_out=10,
+                    num_target=1,
+                    single_output=True,
+                    rnn_cell=tf.contrib.rnn.BasicRNNCell,
+                    activation_hidden=tf.tanh,
+                    activation_out=tf.identity,
+                    optimizer=optimizers[options["optimization"]],
+                    loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                    output_info=self.output_info,
+                    checkpoints=options["checkpoints"],
+                    resume=options["resume"])
+                self.train_network(self.mnist_lstm, self.mnist_data,
+                                   self.mnist_batch_size, self.mnist_epochs)
+
+            if options["lstm"]:
+                tf.reset_default_graph()
+                self.mnist_lstm=TFRNN(
+                    name="mnist_lstm",
+                    log_output=options["log_output"],
+                    num_in=1,
+                    num_hidden=128,
+                    num_out=10,
+                    num_target=1,
+                    single_output=True,
+                    rnn_cell=tf.contrib.rnn.LSTMCell,
+                    activation_hidden=tf.tanh,
+                    activation_out=tf.identity,
+                    optimizer=optimizers[options["optimization"]],
+                    loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
+                    output_info=self.output_info,
+                    checkpoints=options["checkpoints"],
+                    resume=options["resume"])
+                self.train_network(self.mnist_lstm, self.mnist_data,
+                                   self.mnist_batch_size, self.mnist_epochs)
+
         tf.logging.info('Init and training networks for one timestep done.')
 
     def train_networks(self, timesteps_idx=1, options=default_options):
