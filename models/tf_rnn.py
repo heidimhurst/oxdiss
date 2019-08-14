@@ -202,6 +202,26 @@ class TFRNN:
         else:
             raise Exception('New loss function')
 
+        # === PREDICTIONS (beta) ===
+        if self.problem == "mnist":
+            # predictions = {
+            #     "classes": tf.argmax(input=outputs_o, axis=1),
+            #     "probabilities": tf.nn.softmax(outputs_o, name="softmax_tensor")
+            # }
+            # self.predict = tf.estimator.EstimatorSpec(mode=tf.estimator.ModeKeys.PREDICT, predictions=predictions)
+            self.predict = tf.nn.softmax(outputs_o)
+            # create placeholders
+            self.true_class_placeholder = tf.placeholder(tf.uint8,
+                                                    shape=(output_info["batch_size"], 1),
+                                                    name="Y_batch")
+            self.predicted_class_placeholder = tf.placeholder(tf.int64,
+                                                         shape=(output_info["batch_size"]),
+                                                         name="predicted_classes")
+            self.accuracy, self.acc_opp = tf.metrics.accuracy(labels=self.true_class_placeholder,
+                                                              predictions=self.predicted_class_placeholder,
+                                                              name="accuracy_metric")
+
+
         # === KFAC Optimization (beta) ===
         if optimizer == "adaqn":
             # optimizer = TensorflowStochQNOptimizer(self.total_loss, optimizer="adaQN")
@@ -284,6 +304,10 @@ class TFRNN:
             # initialize loss
             # batch_loss = tf.Variable(0., name="batch_loss")
             tf.summary.scalar("total_loss", self.total_loss)
+
+            # ACCURACY
+            if self.problem == "mnist":
+                tf.summary.scalar("accuracy", self.accuracy)
             # summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
 
 
@@ -307,8 +331,15 @@ class TFRNN:
 
             # train_writer = tf.contrib.summary('./logs/{}_{}/train'.format(self.log_output, self.name), sess.graph)
 
+            # ACCURACY PLACEHOLDER
+
+
             # initialize global vars
             sess.run(tf.global_variables_initializer())
+            sess.run(tf.local_variables_initializer())
+
+            stream_vars = [i for i in tf.local_variables()]
+            print(stream_vars)
 
             # fetch validation and test sets
             num_batches = dataset.get_batch_count(batch_size)
@@ -349,9 +380,37 @@ class TFRNN:
                     X_batch, Y_batch = dataset.get_batch(batch_idx, batch_size)
 
                     # evaluate
-                    summary, batch_loss = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
+                    summary, batch_loss, *prediction = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
                     # tf.summary.scalar("batch_loss", batch_loss)
                     print("BATCH LOSS {}".format(batch_loss))
+
+                    # if MNIST, get accuracy
+                    if self.problem == "mnist":
+                        predicted_classes = np.argmax(np.array(prediction[0]), axis=1)
+                        # print(predicted_classes)
+                        # print(Y_batch)
+
+                        # manual comparison (troubleshooting accuracy)
+                        accuracy_manual = 0
+                        for guess in range(len(predicted_classes)):
+                            if predicted_classes[guess] == Y_batch[guess][0]:
+                                accuracy_manual += 1
+                        accuracy_manual = accuracy_manual/len(predicted_classes)
+                        print(accuracy_manual)
+
+                        # TODO: need to write accuracy to a tensor so that we don't have this issue
+                        # https://stackoverflow.com/questions/46409626/how-to-properly-use-tf-metrics-accuracy/46414395
+
+                        # tf.summary.scalar('accuracy_manual', accuracy_manual)
+
+                        accuracy, acc_opp = sess.run([self.accuracy, self.acc_opp],
+                                                     feed_dict={self.true_class_placeholder: Y_batch,
+                                                                self.predicted_class_placeholder: predicted_classes})
+
+                        # self.accuracy, self.acc_opp = tf.metrics.accuracy(labels=Y_batch, predictions=predicted_classes, name="accuracy")
+                        # metrics = {'accuracy': accuracy}
+                        # tf.summary.scalar('accuracy', self.accuracy)
+
 
                     # BATCHTEST
                     # summary = sess.run(write_op, {batch_loss: batch_loss})  # NOT SURE IF THIS WORKS
@@ -401,7 +460,7 @@ class TFRNN:
                 self.writer.add_summary(summary, counter)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
                 epoch_duration = datetime.now() - epoch_start
-                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} | Time: {3:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss, epoch_duration.total_seconds()))
+                # tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} | Time: {3:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss, epoch_duration.total_seconds()))
                 # todo: write validation loss to tensorboard feed
 
         self.save_training_time()
@@ -462,7 +521,12 @@ class TFRNN:
                 tf.log.ERROR("No merge included - summary cannot be written")
                 loss, _ = sess.run([self.total_loss, self.train_step], feed_dict)
             else:
-                summary, loss, _ = sess.run([merge, self.total_loss, self.train_step], feed_dict)
+                # summary, loss, _ = sess.run([merge, self.total_loss, self.train_step], feed_dict)
+                # PREDICTION - TEST
+                summary, loss, prediction, _ = sess.run([merge, self.total_loss,
+                                                         self.predict, self.train_step], feed_dict)
+                if self.problem == "mnist":
+                    return summary, loss, prediction
                 return summary, loss
         else:
             # TODO: I'm not entirely sure this is validating correctly -

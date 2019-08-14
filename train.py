@@ -236,6 +236,11 @@ class Main:
                                self.ap_batch_size, self.ap_epochs)
 
         if options["mnist_problem"]:
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.mnist_batch_size
+            self.output_info["epochs"] = self.mnist_epochs
+
+
             tf.reset_default_graph()
             self.mnist_urnn = TFRNN(
                 name="mnist_{}".format(options["cell_type"]),
