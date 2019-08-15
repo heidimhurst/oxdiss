@@ -125,6 +125,11 @@ class Main:
             self.mnist_epochs = options["epochs"]
             self.mnist_data = MnistProblemDataset(-1, -1)
 
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.mnist_batch_size
+            self.output_info["epochs"] = self.mnist_epochs
+
+
         tf.logging.info('Done.')
 
     def train_network(self, net, dataset, batch_size, epochs):
@@ -236,9 +241,9 @@ class Main:
                                self.ap_batch_size, self.ap_epochs)
 
         if options["mnist_problem"]:
-            # write info to dictionary for later use
-            self.output_info["batch_size"] = self.mnist_batch_size
-            self.output_info["epochs"] = self.mnist_epochs
+            # # write info to dictionary for later use
+            # self.output_info["batch_size"] = self.mnist_batch_size
+            # self.output_info["epochs"] = self.mnist_epochs
 
 
             tf.reset_default_graph()
@@ -375,6 +380,11 @@ class Main:
                                    self.ap_batch_size, self.ap_epochs)
 
         if options["mnist_problem"]:
+
+            # write info to dictionary for later use
+            self.output_info["batch_size"] = self.mnist_batch_size
+            self.output_info["epochs"] = self.mnist_epochs
+
 
             if options["rnn"]:
                 tf.reset_default_graph()

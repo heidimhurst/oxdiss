@@ -521,13 +521,15 @@ class TFRNN:
                 tf.log.ERROR("No merge included - summary cannot be written")
                 loss, _ = sess.run([self.total_loss, self.train_step], feed_dict)
             else:
-                # summary, loss, _ = sess.run([merge, self.total_loss, self.train_step], feed_dict)
-                # PREDICTION - TEST
-                summary, loss, prediction, _ = sess.run([merge, self.total_loss,
-                                                         self.predict, self.train_step], feed_dict)
                 if self.problem == "mnist":
+                    # PREDICTION
+                    summary, loss, prediction, _ = sess.run([merge, self.total_loss,
+                                                             self.predict, self.train_step], feed_dict)
                     return summary, loss, prediction
-                return summary, loss
+                else:
+                    summary, loss, _ = sess.run([merge, self.total_loss,
+                                                 self.train_step], feed_dict)
+                    return summary, loss
         else:
             # TODO: I'm not entirely sure this is validating correctly -
             # seems like the values are entirely too close, and I'm afraid this is just calling the loss function
