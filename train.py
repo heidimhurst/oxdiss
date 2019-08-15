@@ -86,7 +86,8 @@ class Main:
                             "start_time": datetime.now().strftime("%X"),
                             "learning_rate": glob_learning_rate,
                             "decay": glob_decay,
-                            "machine": socket.gethostname()}
+                            "machine": socket.gethostname(),
+                            "checkpoints": options["checkpoints"]}
 
         tf.logging.info('Generating data...')
 
@@ -261,6 +262,7 @@ class Main:
                 optimizer=optimizers[options["optimization"]],
                 loss_function=tf.nn.sparse_softmax_cross_entropy_with_logits,
                 output_info=self.output_info,
+                checkpoints=options["checkpoints"],
                 resume=options["resume"])
             self.train_network(self.mnist_urnn, self.mnist_data,
                                self.mnist_batch_size, self.mnist_epochs)

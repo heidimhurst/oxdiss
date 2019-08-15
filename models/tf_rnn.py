@@ -186,7 +186,7 @@ class TFRNN:
         # tf.Print(outputs_o, [outputs_o])
         print("==endoutputs==")
 
-            
+
         # calculate losses and set up optimizer
 
         # loss function is usually one of these two:
@@ -220,7 +220,6 @@ class TFRNN:
             self.accuracy, self.acc_opp = tf.metrics.accuracy(labels=self.true_class_placeholder,
                                                               predictions=self.predicted_class_placeholder,
                                                               name="accuracy_metric")
-
 
         # === KFAC Optimization (beta) ===
         if optimizer == "adaqn":
@@ -272,6 +271,21 @@ class TFRNN:
 
         # save info about trial run for later use/analysis/recordkeeping
         self.save_output_info()
+
+    @classmethod
+    # https://stavshamir.github.io/python/2018/05/26/overloading-constructors-in-python.html
+    def from_checkpoint(cls, checkpoint) -> 'TFRNN':
+        """
+        Creates instance of TFRNN model from checkpoint
+        :param checkpoint: saved model checkpoint (should be in a /logs/ folder)
+        :return:
+        """
+
+        # if checkpoint is a folder
+        if os.path.isdir(checkpoint):
+            # check if
+            pass
+
 
     def train(self, dataset, batch_size, epochs):
 
@@ -387,6 +401,7 @@ class TFRNN:
                     # if MNIST, get accuracy
                     if self.problem == "mnist":
                         predicted_classes = np.argmax(np.array(prediction[0]), axis=1)
+
                         # print(predicted_classes)
                         # print(Y_batch)
 
@@ -398,14 +413,22 @@ class TFRNN:
                         accuracy_manual = accuracy_manual/len(predicted_classes)
                         print(accuracy_manual)
 
-                        # TODO: need to write accuracy to a tensor so that we don't have this issue
-                        # https://stackoverflow.com/questions/46409626/how-to-properly-use-tf-metrics-accuracy/46414395
-
-                        # tf.summary.scalar('accuracy_manual', accuracy_manual)
+                        # Next three lines of code prevent accuracy metric from being cumulative
+                        # (i.e. look at accuracy of each batch SEPARATELY)
+                        # see info about default behavior: http://ronny.rest/blog/post_2017_09_11_tf_metrics/
+                        # Isolate the variables stored behind the scenes by the metric operation
+                        running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope="accuracy_metric")
+                        # Define initializer to initialize/reset running variables
+                        running_vars_initializer = tf.variables_initializer(var_list=running_vars)
+                        sess.run(running_vars_initializer)
+                        # end undo cumulative observations
 
                         accuracy, acc_opp = sess.run([self.accuracy, self.acc_opp],
                                                      feed_dict={self.true_class_placeholder: Y_batch,
                                                                 self.predicted_class_placeholder: predicted_classes})
+
+                        # print(accuracy)
+                        # print(acc_opp)
 
                         # self.accuracy, self.acc_opp = tf.metrics.accuracy(labels=Y_batch, predictions=predicted_classes, name="accuracy")
                         # metrics = {'accuracy': accuracy}
@@ -540,6 +563,21 @@ class TFRNN:
             return summary, loss
 
         return loss
+
+    def predict(self, input_tensor):
+        """
+        Callable that takes an input tensor and returns the model logits for use with
+        cleverhans implementation of the Fast Gradient Method.
+        :param input_tensor: input tensor (test value)
+        :return: model logits
+        """
+
+    def load_checkpoint(self, checkpoint):
+        """
+        Loads model from checkpoint filepath (?)
+        :param checkpoint:
+        :return:
+        """
 
     # loss list getter
     def get_loss_list(self):
