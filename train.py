@@ -43,6 +43,7 @@ glob_decay = 0.9
 default_options = {"adding_problem": True,
                    "memory_problem": True,
                    "mnist_problem": False,
+                   "permuted_mnist": False,
                    "batch_size": 128,
                    "epochs": 2,
                    "seed": False,
@@ -124,7 +125,7 @@ class Main:
 
             self.mnist_batch_size = options["batch_size"]
             self.mnist_epochs = options["epochs"]
-            self.mnist_data = MnistProblemDataset(-1, -1)
+            self.mnist_data = MnistProblemDataset(-1, -1, options["permuted_mnist"])
 
             # write info to dictionary for later use
             self.output_info["batch_size"] = self.mnist_batch_size
@@ -478,6 +479,7 @@ if __name__ == "__main__":
     parser.add_argument("-a", '--adding-problem', dest="adding_problem", action='store_true')
     parser.add_argument("-m", '--memory-problem', dest="memory_problem", action='store_true')
     parser.add_argument("-i", '--mnist-problem', dest="mnist_problem", action='store_true')
+    parser.add_argument("-p", '--permuted-mnist', dest="permuted_mnist", action='store_true')
 
     parser.add_argument("-b", '--batch-size', dest="batch_size", type=int, default=128)
     parser.add_argument("-e", '--epochs', dest="epochs", type=int, default=2)
@@ -515,9 +517,14 @@ if __name__ == "__main__":
     # print cell type info
     # tf.logging.info("URNN cell type set to {}".format(args.cell_type))
 
+    # if permuted mnist, require mnist
+    if args.permuted_mnist:
+        args.mnist_problem = True
+
     input_options = {"adding_problem":args.adding_problem,
                         "memory_problem":args.memory_problem,
                         "mnist_problem":args.mnist_problem,
+                        "permuted_mnist":args.permuted_mnist,
                         "batch_size":args.batch_size,
                         "epochs":args.epochs,
                         # "seed":args.seed,
@@ -530,6 +537,7 @@ if __name__ == "__main__":
                         "optimization":args.optimization,
                         "checkpoints":args.checkpoints,
                         "resume":args.resume}
+
 
     input_options = dict(default_options, **input_options)
 
