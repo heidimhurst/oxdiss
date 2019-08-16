@@ -73,10 +73,10 @@ def baseline_ap():
     return 0.167
 
 
-def serialize_loss(loss, name):
-    file=open(loss_path + name, 'w')
-    for l in loss:
-        file.write("{0}\n".format(l))
+def serialize_loss(loss, path, name):
+    with open(os.path.join(path, name+".txt"), "w") as file:
+        for l in loss:
+            file.write("{0}\n".format(l))
 
 
 class Main:
@@ -150,7 +150,7 @@ class Main:
             # net.summary()
             net.train(dataset, batch_size, epochs)
             # loss_list has one number for each batch (step)
-            serialize_loss(net.get_loss_list(), net.name + sample_len)
+            serialize_loss(net.get_loss_list(), net.log_dir, net.name + sample_len)
             # todo: get accuracy, not just loss
 
             save_path = saver.save(sess, os.path.join(net.log_dir,"model_{}.ckpt".format(net.name)))

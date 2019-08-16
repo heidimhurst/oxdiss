@@ -26,7 +26,6 @@ def serialize_to_file(loss, outfolder="", name="losses.txt"):
     file.close()
 
 
-
 def increment_trial(logdir):
     # creates a new folder for output logs based on time & date
     # format: MM_DD_RR where rr is the run index
@@ -582,6 +581,10 @@ class TFRNN:
     # loss list getter
     def get_loss_list(self):
         return self.loss_list
+
+    # log dir getter
+    def get_log_dir(self):
+        return self.log_dir
 
     # save trial info to file
     def save_output_info(self):
