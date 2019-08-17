@@ -106,7 +106,7 @@ class TFRNN:
         #     tf.logging.info("Initializing from scratch.")
 
 
-        self.validation_frequency = 100
+        self.validation_frequency = 5
 
         # init cell
         if isinstance(rnn_cell, str):
@@ -457,24 +457,25 @@ class TFRNN:
 
                         batch_start = datetime.now()
 
-                    # validation loss
-                    # if batch_idx % self.validation_frequency == 0:
-                    #     # TODO: how frequently should we validate?
-                    #     # validate after every 10 batches?
-                    #     summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
-                    #     self.validation_list.append(validation_loss)
-                    #     serialize_to_file(self.validation_list, outfolder=self.log_dir, name="validation_losses.txt")
-                    #
-                    #     # VALTEST
-                    #     # summary = sess.run(write_op, validation_loss)  # NOT SURE IF THIS WORKS
-                    #     eval_writer.add_summary(summary, counter)
-                    #     eval_writer.flush()  # NOT SURE IF THIS WORKS
-                    #
-                    #     tf.logging.info("Step: {5} | Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
-                    #                     epoch_idx, batch_idx,
-                    #                     total_examples, batch_loss, validation_loss, counter))
+                    # validation loss (non-mnist only for now)
+                    if self.name != "mnist":
+                        if batch_idx % self.validation_frequency == 0:
+                            # TODO: how frequently should we validate?
+                            # validate after every 10 batches?
+                            summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
+                            self.validation_list.append(validation_loss)
+                            serialize_to_file(self.validation_list, outfolder=self.log_dir, name="validation_losses.txt")
 
-                # tf.summary.scalar("validation_loss", validation_loss)
+                            # VALTEST
+                            # summary = sess.run(write_op, validation_loss)  # NOT SURE IF THIS WORKS
+                            eval_writer.add_summary(summary, counter)
+                            eval_writer.flush()  # NOT SURE IF THIS WORKS
+
+                            tf.logging.info("Step: {5} | Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
+                                            epoch_idx, batch_idx,
+                                            total_examples, batch_loss, validation_loss, counter))
+                if self.name != "mnist":
+                    tf.summary.scalar("validation_loss", validation_loss)
 
                 train_writer.add_summary(summary, counter)
                 self.writer.add_summary(summary, counter)
