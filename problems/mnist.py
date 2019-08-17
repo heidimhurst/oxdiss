@@ -44,8 +44,8 @@ class MnistProblemDataset(Dataset):
             self.X_test = np.reshape(mnist.test.images, [-1, 784, 1])
 
         self.Y_train = np.reshape(mnist.train.labels, [-1, 1])
-        self.Y_valid = mnist.validation.labels
-        self.Y_test = mnist.test.labels
+        self.Y_valid = np.reshape(mnist.validation.labels, [-1, 1])
+        self.Y_test = np.reshape(mnist.test.labels, [-1, 1])
 
     def generate(self, num_samples):
         pass

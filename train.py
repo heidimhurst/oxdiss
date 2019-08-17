@@ -127,9 +127,15 @@ class Main:
             self.mnist_epochs = options["epochs"]
             self.mnist_data = MnistProblemDataset(-1, -1, options["permuted_mnist"])
 
+            if options["permuted_mnist"]:
+                self.mnist_name = "permnist"
+            else:
+                self.mnist_name = "mnist"
+
             # write info to dictionary for later use
             self.output_info["batch_size"] = self.mnist_batch_size
             self.output_info["epochs"] = self.mnist_epochs
+            self.output_info["mnist_type"] = self.mnist_name
 
 
         tf.logging.info('Done.')
@@ -178,7 +184,6 @@ class Main:
             cell = options["cell_type"]
 
         tf.logging.info('Initializing and training URNNs for one timestep...')
-
 
 
         if options["memory_problem"]:
@@ -244,13 +249,13 @@ class Main:
 
         if options["mnist_problem"]:
             # # write info to dictionary for later use
-            # self.output_info["batch_size"] = self.mnist_batch_size
-            # self.output_info["epochs"] = self.mnist_epochs
+            self.output_info["batch_size"] = self.mnist_batch_size
+            self.output_info["epochs"] = self.mnist_epochs
 
 
             tf.reset_default_graph()
             self.mnist_urnn = TFRNN(
-                name="mnist_{}".format(options["cell_type"]),
+                name="{}_{}".format(self.mnist_name, options["cell_type"]),
                 log_output=options["log_output"],
                 num_in=1,
                 num_hidden=512,
@@ -392,7 +397,7 @@ class Main:
             if options["rnn"]:
                 tf.reset_default_graph()
                 self.mnist_lstm=TFRNN(
-                    name="mnist_simplernn",
+                    name="{}_simplernn".format(self.mnist_name),
                     log_output=options["log_output"],
                     num_in=1,
                     num_hidden=128,
@@ -413,7 +418,7 @@ class Main:
             if options["lstm"]:
                 tf.reset_default_graph()
                 self.mnist_lstm=TFRNN(
-                    name="mnist_lstm",
+                    name="{}_lstm".format(self.mnist_name),
                     log_output=options["log_output"],
                     num_in=1,
                     num_hidden=128,
@@ -437,7 +442,6 @@ class Main:
         tf.logging.info('Starting training...')
 
         print(options)
-
 
         # timesteps_idx=4
         if options["urnn"]:

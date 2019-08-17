@@ -106,7 +106,7 @@ class TFRNN:
         #     tf.logging.info("Initializing from scratch.")
 
 
-        self.validation_frequency = 5
+        self.validation_frequency = 50
 
         # init cell
         if isinstance(rnn_cell, str):
@@ -200,19 +200,23 @@ class TFRNN:
             raise Exception('New loss function')
 
         # === PREDICTIONS (beta) ===
-        if self.problem == "mnist":
+        if "mnist" in self.problem:
             # predictions = {
             #     "classes": tf.argmax(input=outputs_o, axis=1),
             #     "probabilities": tf.nn.softmax(outputs_o, name="softmax_tensor")
             # }
             # self.predict = tf.estimator.EstimatorSpec(mode=tf.estimator.ModeKeys.PREDICT, predictions=predictions)
+
+            # self.logits = outputs_o  # TODO: need to somehow save logits for later use/export
+            # self.logits = tf.get_variable("logits", initializer=outputs_o, trainable=False)
+
             self.predict = tf.nn.softmax(outputs_o)
             # create placeholders
             self.true_class_placeholder = tf.placeholder(tf.uint8,
-                                                    shape=(output_info["batch_size"], 1),
+                                                    # shape=(output_info["batch_size"], 1),
                                                     name="Y_batch")
             self.predicted_class_placeholder = tf.placeholder(tf.int64,
-                                                         shape=(output_info["batch_size"]),
+                                                         # shape=(output_info["batch_size"]),
                                                          name="predicted_classes")
             self.accuracy, self.acc_opp = tf.metrics.accuracy(labels=self.true_class_placeholder,
                                                               predictions=self.predicted_class_placeholder,
@@ -317,7 +321,7 @@ class TFRNN:
             tf.summary.scalar("total_loss", self.total_loss)
 
             # ACCURACY
-            if self.problem == "mnist":
+            if "mnist" in self.problem:
                 tf.summary.scalar("accuracy", self.accuracy)
             # summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
 
@@ -392,44 +396,13 @@ class TFRNN:
 
                     # evaluate
                     summary, batch_loss, *prediction = self.evaluate(sess, X_batch, Y_batch, merge, training=True)
+                    # summary, batch_loss, *prediction = self.evaluate(sess, X_val, Y_val, merge, training=True)
                     # tf.summary.scalar("batch_loss", batch_loss)
                     print("BATCH LOSS {}".format(batch_loss))
 
                     # if MNIST, get accuracy
-                    if self.problem == "mnist":
-                        predicted_classes = np.argmax(np.array(prediction[0]), axis=1)
-
-                        # print(predicted_classes)
-                        # print(Y_batch)
-
-                        # manual comparison (troubleshooting accuracy)
-                        accuracy_manual = 0
-                        for guess in range(len(predicted_classes)):
-                            if predicted_classes[guess] == Y_batch[guess][0]:
-                                accuracy_manual += 1
-                        accuracy_manual = accuracy_manual/len(predicted_classes)
-                        print(accuracy_manual)
-
-                        # Next three lines of code prevent accuracy metric from being cumulative
-                        # (i.e. look at accuracy of each batch SEPARATELY)
-                        # see info about default behavior: http://ronny.rest/blog/post_2017_09_11_tf_metrics/
-                        # Isolate the variables stored behind the scenes by the metric operation
-                        running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope="accuracy_metric")
-                        # Define initializer to initialize/reset running variables
-                        running_vars_initializer = tf.variables_initializer(var_list=running_vars)
-                        sess.run(running_vars_initializer)
-                        # end undo cumulative observations
-
-                        accuracy, acc_opp = sess.run([self.accuracy, self.acc_opp],
-                                                     feed_dict={self.true_class_placeholder: Y_batch,
-                                                                self.predicted_class_placeholder: predicted_classes})
-
-                        # print(accuracy)
-                        # print(acc_opp)
-
-                        # self.accuracy, self.acc_opp = tf.metrics.accuracy(labels=Y_batch, predictions=predicted_classes, name="accuracy")
-                        # metrics = {'accuracy': accuracy}
-                        # tf.summary.scalar('accuracy', self.accuracy)
+                    if "mnist" in self.problem:
+                        self.get_accuracy(sess, prediction=prediction, Y_batch=Y_batch)
 
 
                     # BATCHTEST
@@ -442,7 +415,7 @@ class TFRNN:
                     # save the loss for later
                     self.loss_list.append(batch_loss)
 
-                    # plot
+                    # print information every 10 batches
                     if batch_idx % 10 == 0:
                         total_examples = batch_size * num_batches * epoch_idx + batch_size * batch_idx + batch_size
 
@@ -457,32 +430,37 @@ class TFRNN:
 
                         batch_start = datetime.now()
 
-                    # validation loss (non-mnist only for now)
-                    if self.name != "mnist":
-                        if batch_idx % self.validation_frequency == 0:
-                            # TODO: how frequently should we validate?
-                            # validate after every 10 batches?
-                            summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge)
-                            self.validation_list.append(validation_loss)
-                            serialize_to_file(self.validation_list, outfolder=self.log_dir, name="validation_losses.txt")
+                    # validation loss
+                    if batch_idx % self.validation_frequency == 0:
+                        # TODO: how frequently should we validate?
+                        # validate after every 10 batches?
 
-                            # VALTEST
-                            # summary = sess.run(write_op, validation_loss)  # NOT SURE IF THIS WORKS
-                            eval_writer.add_summary(summary, counter)
-                            eval_writer.flush()  # NOT SURE IF THIS WORKS
+                        if "mnist" in self.problem:
+                            summary, validation_loss, prediction, Y = self.evaluate(sess, X_val, Y_val, merge,
+                                                                     max_batch_size=50, training=False)
+                            self.get_accuracy(sess, [prediction], Y)
+                        else:
+                            summary, validation_loss = self.evaluate(sess, X_val, Y_val, merge, training=False)
 
-                            tf.logging.info("Step: {5} | Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
-                                            epoch_idx, batch_idx,
-                                            total_examples, batch_loss, validation_loss, counter))
-                if self.name != "mnist":
-                    tf.summary.scalar("validation_loss", validation_loss)
+                        self.validation_list.append(validation_loss)
+                        serialize_to_file(self.validation_list, outfolder=self.log_dir, name="validation_losses.txt")
+
+                        # write evaluation, close stream
+                        eval_writer.add_summary(summary, counter)
+                        eval_writer.flush()
+
+                        tf.logging.info("Step: {5} | Epoch: {0:3d} | Batch: {1:3d} | TotalExamples: {2:5d} | BatchLoss: {3:8.4f} | ValidationLoss: {4:8.4f}".format(
+                                        epoch_idx, batch_idx,
+                                        total_examples, batch_loss, validation_loss, counter))
+
+                # if self.problem == "mnist":
+                #     tf.summary.scalar("validation_loss", validation_loss)
 
                 train_writer.add_summary(summary, counter)
                 self.writer.add_summary(summary, counter)
                 mean_epoch_loss = np.mean(self.loss_list[-num_batches:])
                 epoch_duration = datetime.now() - epoch_start
-                # tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} | Time: {3:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss, epoch_duration.total_seconds()))
-                # todo: write validation loss to tensorboard feed
+                tf.logging.info("Epoch Over: {0:3d} | MeanEpochLoss: {1:8.4f} | ValidationSetLoss: {2:8.4f} | Time: {3:8.4f} \n".format(epoch_idx, mean_epoch_loss, validation_loss, epoch_duration.total_seconds()))
 
         self.save_training_time()
 
@@ -520,7 +498,8 @@ class TFRNN:
         batch_size = X.shape[0]
 
         # todo: if batch size is too large, SUBSAMPLE and throw warning
-        if batch_size > max_batch_size and self.problem != "mnist":
+        if batch_size > max_batch_size:
+            # and self.problem != "mnist":
             tf.logging.warn("Evaluation batch size is too large.  Downsampling from {} to {}.".format(batch_size,
                                                                                                       max_batch_size))
             inds = np.random.randint(0, batch_size-1, max_batch_size)
@@ -542,7 +521,7 @@ class TFRNN:
                 tf.log.ERROR("No merge included - summary cannot be written")
                 loss, _ = sess.run([self.total_loss, self.train_step], feed_dict)
             else:
-                if self.problem == "mnist":
+                if "mnist" in self.problem:
                     # PREDICTION
                     summary, loss, prediction, _ = sess.run([merge, self.total_loss,
                                                              self.predict, self.train_step], feed_dict)
@@ -556,11 +535,46 @@ class TFRNN:
             # seems like the values are entirely too close, and I'm afraid this is just calling the loss function
             # on the evaluation stuff and thus actually incrementing the model itself? not sure :(
             # NOTE: should be ok because i'm not calling self.train_step :)
-            summary, loss = sess.run([merge, self.total_loss], feed_dict)
-            # tf.logging.info("Evaluating error... loss is {}".format(loss))
-            return summary, loss
+            if "mnist" in self.problem:
+                summary, loss, prediction = sess.run([merge, self.total_loss, self.predict], feed_dict)
+                return summary, loss, prediction, Y
+            else:
+                summary, loss = sess.run([merge, self.total_loss], feed_dict)
+                # tf.logging.info("Evaluating error... loss is {}".format(loss))
+                return summary, loss
 
         return loss
+
+    def get_accuracy(self, sess, prediction, Y_batch):
+        predicted_classes = np.argmax(np.array(prediction[0]), axis=1)
+
+        # print(predicted_classes)
+        # print(Y_batch)
+
+        # manual comparison (troubleshooting accuracy)
+        accuracy_manual = 0
+        for guess in range(len(predicted_classes)):
+            if predicted_classes[guess] == Y_batch[guess][0]:
+                accuracy_manual += 1
+        accuracy_manual = accuracy_manual / len(predicted_classes)
+
+        # print("MANUAL ACCURACY:{}".format(accuracy_manual))
+
+        # Next three lines of code prevent accuracy metric from being cumulative
+        # (i.e. look at accuracy of each batch SEPARATELY)
+        # see info about default behavior: http://ronny.rest/blog/post_2017_09_11_tf_metrics/
+        # Isolate the variables stored behind the scenes by the metric operation
+        running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope="accuracy_metric")
+        # Define initializer to initialize/reset running variables
+        running_vars_initializer = tf.variables_initializer(var_list=running_vars)
+        sess.run(running_vars_initializer)
+        # end undo cumulative observations
+
+        accuracy, acc_opp = sess.run([self.accuracy, self.acc_opp],
+                                     feed_dict={self.true_class_placeholder: Y_batch,
+                                                self.predicted_class_placeholder: predicted_classes})
+
+        return accuracy, acc_opp
 
     def predict(self, input_tensor):
         """
