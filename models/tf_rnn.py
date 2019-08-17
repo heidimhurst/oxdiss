@@ -48,8 +48,6 @@ def increment_trial(logdir):
     return trial_name
 
 
-
-
 class TFRNN:
     def __init__(
         self,

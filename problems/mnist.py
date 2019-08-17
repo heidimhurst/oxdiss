@@ -1,6 +1,7 @@
 import numpy as np
 from .dataset import Dataset
 from tensorflow.examples.tutorials.mnist import input_data
+import tensorflow as tf
 
 # single output = False
 # num_in = 784
@@ -20,6 +21,7 @@ class MnistProblemDataset(Dataset):
 
         # code for permuted pixelwise MNIST problem
         if permute:
+            tf.logging.info("Permuting MNIST dataset...")
             # create permutation matrix
             permutation_matrix = np.eye(784)
             # ensure that seed is set for transferability across different runs
@@ -49,7 +51,14 @@ class MnistProblemDataset(Dataset):
         pass
 
     def permute_collection(self, collection, permutation_matrix):
+        """
+        Permutes a collection of images according to some permutation matrix
+        :param collection: list of images as np arrays/matrices
+        :param permutation_matrix: 784x784 permutation matrix
+        :return: list of images same shape as collection
+        """
+        out_collection = [None] * collection.shape[0]
         for i in range(collection.shape[0]):
-            collection[i] = permutation_matrix.dot(collection[i])
+            out_collection[i] = permutation_matrix.dot(collection[i])
 
-        return collection
+        return out_collection
