@@ -178,6 +178,11 @@ class TFRNN:
             preact = out_h_mul + tf.transpose(self.b_o)
             outputs_o = activation_out(preact) # [batch_size, time_step, num_out]
 
+        # TESTING
+        # make outputs_o a non-trainable variable
+        # outputs_o = tf.Variable(outputs_o, trainable=False, name="logits", validate_shape=False)
+        self.outputs_o = outputs_o
+
         print("outputs_o")
         tf.print(outputs_o, output_stream=tf.compat.v1.logging.warning)
         # tf.Print(outputs_o, [outputs_o])
