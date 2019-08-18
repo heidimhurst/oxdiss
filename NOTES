@@ -15,7 +15,9 @@ ssh hursth@gate.maths.ox.ac.uk THEN
 ssh <clustername>
 
 To use desktop computer
+ssh -L 6005:localhost:6005 hursth@gate.maths.ox.ac.uk
 ssh -L 6005:localhost:6005 hursth@professor-xavier.maths.ox.ac.uk
+ssh hursth@professor-xavier.maths.ox.ac.uk
 
 
 To use Google Colaboratory:
@@ -23,7 +25,34 @@ https://research.google.com/colaboratory/local-runtimes.html
 
 
 === Training Command ===
-python train.py -tr -m -u -b=128 -e=5 -c=u -s=100
+python train.py -tr -m -u -b=128 -e=300 -c=urnn -s=300
+# example of resuming from folder "08_05/6"
+python train.py -tr -m -u -b=128 -e=300 -c=u -s=300 -r=08_05/6
+python train.py -tr -a -u -b=128 -e=300 -c=u -s=300 ; python train.py -tr -a -i -b=128 -e=300 -c=u -s=300
+
+python train.py -tr -a -u -b=128 -e=1 -c=u -s=300
+
+python train.py -tr -a -l -b=128 -e=10 -c=u -s=300
+
+CUDA_VISIBLE_DEVICES='0' python train.py -tr -a -l -b=128 -e=10 -c=u -s=300; 
+
+
+for i in l n u
+do
+CUDA_VISIBLE_DEVICES='1' python train.py -tr -a -$i -b=128 -e=10 -c=u -s=300
+done
+
+for j in r1 d1
+do
+CUDA_VISIBLE_DEVICES='0' python train.py -tr -a -u -b=128 -e=10 -c=$j -s=300
+done
+
+CUDA_VISIBLE_DEVICES='1' python train.py -tr -i -$i -b=128 -e=10 -c=u -s=300
+
+python train.py -tr -i -l -b=128 -e=10 -c=u -s=300
+CUDA_VISIBLE_DEVICES='0' python train.py -tr -i -u -b=128 -e=10 -c=u -s=300
+
+CUDA_VISIBLE_DEVICES='1' python train.py -tr -i -u -b=32 -e=10 -c=u -s=300
 
 
 === Outstanding Issues ===
@@ -33,3 +62,80 @@ Tensorboard view in notebooks: https://www.tensorflow.org/tensorboard/r2/tensorb
 == Trying to get CPU on remote desktop to work ==
 error: The TensorFlow library was compiled to use SSE4.1 instructions, but these aren't available on your machine.
 cat /proc/cpuinfo (command to get more info about cpu)
+
+== See what's happening on a cpu 
+top OR htop
+https://www.howtogeek.com/107217/how-to-manage-processes-from-the-linux-terminal-10-commands-you-need-to-know/
+
+what's happening on a GPU
+watch -n1 nvidia-smi
+
+== to run with GPU ==
+
+== possibly useful ==
+https://medium.com/@erikhallstrm/hello-world-rnn-83cd7105b767
+
+
+== fgsm ==
+https://tensorflow.google.cn/beta/tutorials/generative/adversarial_fgsm
+sess = tf.compat.v1.Session()
+l1 = loss.eval(session=sess)
+
+x = tf.constant(3.)
+with tfe.GradientTape() as g:
+  g.watch(x)
+  y = x * x
+grad = g.gradient(y, [x])[0] # Will compute to 6.0
+
+with tf.GradientTape(persistent=True) as k:
+    g.watch(x)
+    logits = model_fn(x)
+    # g.watch(logits)
+    # Compute loss
+    loss = loss_fn(labels=y, logits=logits)
+    # g.watch(loss)
+    if targeted:  # attack is targeted, minimize loss of target label rather than maximize loss of correct label
+        loss = -loss
+
+output = k.gradient(loss, x)
+
+
+with tf.GradientTape(persistent=True) as k:
+    k.watch(x)
+    # Compute loss
+    z = 2*x
+    loss = loss_fn(labels=y, logits=model_fn(x))
+    k.watch(loss)
+    if targeted:  # attack is targeted, minimize loss of target label rather than maximize loss of correct label
+        loss = -loss
+
+grad_loss = k.gradient(loss,x)
+grad_y = k.gradient(z,x)
+
+sess = tf.compat.v1.Session()
+print(grad_loss.eval(session=sess))
+print(grad_y.eval(session=sess))
+
+
+loss_fn = tf.nn.sparse_softmax_cross_entropy_with_logits
+with tf.GradientTape(persistent=True) as k:
+    k.watch(x)
+    # Compute loss
+    z = 2*x
+    loss = loss_fn(labels=y, logits=model_fn(x))
+    k.watch(loss)
+    if targeted:  # attack is targeted, minimize loss of target label rather than maximize loss of correct label
+        loss = -loss
+
+grad_loss = k.gradient(loss,x)
+grad_y = k.gradient(z,x)
+
+sess = tf.compat.v1.Session()
+# print(grad_loss.eval(session=sess))
+print(grad_y.eval(session=sess))
+
+
+https://github.com/rodgzilla/machine_learning_adversarial_examples/blob/master/Adversarial%20examples%20-%20detailled%20process.ipynb
+
+
+

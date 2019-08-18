@@ -8,15 +8,17 @@ class CheckpointInference:
     def __init__(self, folder, checkpoint_number):
 
         # read in dictionary information about the run for later use
-        with open(os.path.join(folder,"info.txt")) as f:
+        with open(os.path.join(folder, "info.txt")) as f:
             run_info = json.load(f)
 
         # construct full path to checkpoint
         checkpoint_name = "model_mnist_{}.ckpt-{}.meta".format(run_info["net_type"], checkpoint_number)
+        # check if file exists
         full_path_to_checkpoint = os.path.join(folder, checkpoint_name)
+        assert os.path.isfile(full_path_to_checkpoint), "Checkpoint does not exist."
 
         # set up graph
-        tf.reset_default_graph()
+        # tf.reset_default_graph()
         graph = tf.get_default_graph()
 
         # start new session
@@ -38,18 +40,51 @@ class CheckpointInference:
 
     def get_logits(self, input_tensor):
 
-        batch_size = len(input_tensor)
+        # batch_size = int(input_tensor.shape[0])  # previously len(input_tensor)
+        #
+        # init_state_value = np.random.uniform(-self.init_state_C,
+        #                                      self.init_state_C,
+        #                                      [batch_size, self.init_state.shape[1]])
+        #
+        # # convert from tensor to np array
+        # input_tensor = input_tensor.eval(session=self.sess)
+        # feed_dict = {self.input_x: input_tensor, self.init_state: init_state_value}
+        #
+        # # COMPUTE THE LOGITS
+        # logits = self.logits.eval(session=self.sess, feed_dict=feed_dict)
+
+        if type(input_tensor) == np.array:
+            logits = self.get_logits_from_array(input_tensor)
+        elif type(input_tensor) == tf.Tensor:
+            input_array = input_tensor.eval(session=self.sess)
+            logits = self.get_logits_from_array(input_array)
+        else:
+            tf.logging.error("Input is wrong form.")
+
+        return logits
+
+
+    def get_logits_from_array(self, input_array):
+
+        batch_size = len(input_array)
 
         init_state_value = np.random.uniform(-self.init_state_C,
                                              self.init_state_C,
                                              [batch_size, self.init_state.shape[1]])
         # specify dictionary to feed tensorflow placeholder values
-        feed_dict = {self.input_x: input_tensor, self.init_state: init_state_value}
+        feed_dict = {self.input_x: input_array, self.init_state: init_state_value}
 
         # COMPUTE THE LOGITS
         logits = self.logits.eval(session=self.sess, feed_dict=feed_dict)
 
-        return logits
+        return tf.convert_to_tensor(logits)
+
+    def get_probabilities(self, input_tensor):
+
+        logits = self.get_logits(input_tensor)
+        probabilities = tf.nn.softmax(logits)
+
+        return probabilities
 
     def get_predictions_from_logits(self, logits):
 

@@ -79,18 +79,20 @@ def compute_gradient(model_fn, x, y, targeted):
     g.watch(x)
     # Compute loss
     loss = loss_fn(labels=y, logits=model_fn(x))
+    g.watch(loss)
     if targeted:  # attack is targeted, minimize loss of target label rather than maximize loss of correct label
       loss = -loss
 
   # Define gradient of loss wrt input
   grad = g.gradient(loss, x)
+
   return grad
 
 
 def optimize_linear(grad, eps, norm=np.inf):
   """
-  Solves for the optimal input to a linear function under a norm constraint.
-
+  # Solves for the optimal input to a linear function under a norm constraint.
+  #
   Optimal_perturbation = argmax_{eta, ||eta||_{norm} < eps} dot(eta, grad)
 
   :param grad: tf tensor containing a batch of gradients
