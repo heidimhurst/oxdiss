@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # mnist = tfds.load(name="mnist", split=tfds.Split.TEST) # tf2
 
     folder = "logs/mnist/u/08_15/20/logs" # "test_logs/"
-    ckpt_numb = 20  # 8500
+    ckpt_numb = 20  # 20 or 8500
 
     # test checkpoint building
     ckpt = CheckpointInference(folder, ckpt_numb)
@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     # select subset to work with (single reshaped image)
     max_batch_size = 1
-    np.random.seed(420240)
+    np.random.seed(420)
     inds = np.random.randint(0, len(input_images), max_batch_size)
     input_subset = tf.convert_to_tensor(input_images[inds, :, :])
 

@@ -62,7 +62,7 @@ def fast_gradient_method(model_fn, x, eps, norm, clip_min=None, clip_max=None, y
 # Due to performance reasons, this function is wrapped inside of tf.function decorator.
 # Not using the decorator here, or letting the user wrap the attack in tf.function is way
 # slower on Tensorflow 2.0.0-alpha0.
-# @tf.function
+# @tf.function # nb for some reason this doesn't seem to be working in 1.13
 def compute_gradient(model_fn, x, y, targeted):
   """
   Computes the gradient of the loss with respect to the input tensor.
@@ -74,17 +74,25 @@ def compute_gradient(model_fn, x, y, targeted):
                     direction of being more like y.
   :return: A tensor containing the gradient of the loss with respect to the input tensor.
   """
+  # x = tf.convert_to_tensor(np.array([[0.10691169, 0.10701598, 0.07510275, 0.08908817, 0.11151768, 0.08313765,
+  #                0.08032516, 0.09327613, 0.15289702, 0.10072779]]))
   loss_fn = tf.nn.sparse_softmax_cross_entropy_with_logits
-  with tf.GradientTape() as g:
+  with tf.GradientTape(persistent=True) as g:
     g.watch(x)
     # Compute loss
     loss = loss_fn(labels=y, logits=model_fn(x))
+    logits = model_fn(x)
     g.watch(loss)
     if targeted:  # attack is targeted, minimize loss of target label rather than maximize loss of correct label
       loss = -loss
 
+    # logits = x
+    # z = loss_fn(labels=y, logits=logits)
+    # print(z)
+
+
   # Define gradient of loss wrt input
-  grad = g.gradient(loss, x)
+  grad = g.gradient(z, x)
 
   return grad
 

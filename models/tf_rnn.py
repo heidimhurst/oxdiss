@@ -382,8 +382,8 @@ class TFRNN:
                 batch_start = datetime.now()
 
                 # train on several minibatches
-                for batch_idx in range(num_batches):
-
+                # for batch_idx in range(num_batches):
+                for batch_idx in range(3):
                     counter += 1  # for use with summary writer
                     merge = tf.summary.merge_all()
 
@@ -581,13 +581,29 @@ class TFRNN:
 
         return accuracy, acc_opp
 
-    def predict(self, input_tensor):
+    def get_logits(self, input_tensor, sess=None):
         """
         Callable that takes an input tensor and returns the model logits for use with
         cleverhans implementation of the Fast Gradient Method.
         :param input_tensor: input tensor (test value)
         :return: model logits
         """
+        batch_size = 1
+        feed_dict = {self.input_x: input_tensor}
+
+        # fill initial state
+        for init_state in self.init_states:
+            # init_state: [batch_size x cell.state_size[i]]
+            feed_dict[init_state] = np.random.uniform(-self.init_state_C,
+                                                      self.init_state_C,
+                                                      [batch_size, init_state.shape[1]])
+
+        if sess is None:
+            sess = tf.compat.v1.Session()
+
+        logits = sess.run([self.outputs_o], feed_dict)
+
+        return logits
 
     def load_checkpoint(self, checkpoint):
         """
@@ -595,6 +611,11 @@ class TFRNN:
         :param checkpoint:
         :return:
         """
+
+    def attack(self, example):
+
+        assert("mnist" in self.problem)
+
 
     # loss list getter
     def get_loss_list(self):

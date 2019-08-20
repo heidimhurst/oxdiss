@@ -5,7 +5,7 @@ import json
 
 
 class CheckpointInference:
-    def __init__(self, folder, checkpoint_number):
+    def __init__(self, folder, checkpoint_number, session=None):
 
         # read in dictionary information about the run for later use
         with open(os.path.join(folder, "info.txt")) as f:
@@ -22,7 +22,10 @@ class CheckpointInference:
         graph = tf.get_default_graph()
 
         # start new session
-        self.sess = tf.compat.v1.Session()
+        if session is None:
+            self.sess = tf.compat.v1.Session()
+        else:
+            self.sess = session
 
         # create saver and restore
         saver = tf.compat.v1.train.import_meta_graph(full_path_to_checkpoint)
